@@ -1,113 +1,119 @@
+# Ubuntu Installation Guide – Artur's Z‑Shell Setup
 
-
-# Zsh Setup
-
-This is my personal Zsh setup for a pleasant developer experience in the terminal.  
-🇩🇪 Für die deutsche Version klicke [hier](./ReadMe-de.md)
-
-## ⚡ Quick Install (Recommended)
-
-Run this single command to install everything automatically:
-
-```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/arturict/zsh-setup/main/install.sh)
-```
-
-After installation, run `exec zsh` to start using your new setup!
-
-## 📋 What's Included
-
-- **Zsh** with **Oh My Zsh** framework
-- **Powerlevel10k** theme for a beautiful and informative prompt
-- **Essential plugins** for enhanced productivity:
-  - `fzf-tab` - Interactive fuzzy tab completion
-  - `zsh-autosuggestions` - Fish-like autosuggestions
-  - `zsh-syntax-highlighting` - Syntax highlighting for commands
-  - `zsh-completions` - Additional completion definitions
-  - `autojump` - Smart directory navigation
-  - And many more useful plugins!
-
-## 🔧 Manual Installation
-
-If you prefer to install step by step:
-
-### Requirements
-- **Ubuntu/Debian** system with `apt` package manager
-- **Internet connection** for downloading packages and themes
-
-### Steps
-
-1. **Install zsh** (if not already installed):
-   ```bash
-   sudo apt install zsh
-   ```
-
-2. **Install oh-my-zsh**:
-   ```bash
-   sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
-   ```
-
-3. **Install powerlevel10k theme**:
-   ```bash
-   git clone --depth=1 https://github.com/romkatv/powerlevel10k.git ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
-   ```
-
-4. **Install required plugins**:
-   ```bash
-   ZSH_CUSTOM=${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}
-   
-   git clone https://github.com/Aloxaf/fzf-tab $ZSH_CUSTOM/plugins/fzf-tab
-   git clone https://github.com/zsh-users/zsh-autosuggestions $ZSH_CUSTOM/plugins/zsh-autosuggestions
-   git clone https://github.com/zsh-users/zsh-syntax-highlighting.git $ZSH_CUSTOM/plugins/zsh-syntax-highlighting
-   git clone https://github.com/zsh-users/zsh-completions $ZSH_CUSTOM/plugins/zsh-completions
-   sudo apt install autojump
-   ```
-
-5. **Replace your .zshrc**:
-   ```bash
-   # Backup your existing .zshrc (optional)
-   cp ~/.zshrc ~/.zshrc.backup
-   
-   # Download and apply the new .zshrc
-   curl -fsSL https://raw.githubusercontent.com/arturict/zsh-setup/main/.zshrc -o ~/.zshrc
-   ```
-
-6. **Set zsh as default shell** (optional):
-   ```bash
-   chsh -s $(which zsh)
-   ```
-
-7. **Restart your shell**:
-   ```bash
-   exec zsh
-   ```
-
-## 🎨 First Run
-
-When you first run zsh with this setup:
-1. **Powerlevel10k configuration wizard** will start automatically
-2. Follow the prompts to customize your prompt appearance
-3. Your choices will be saved to `~/.p10k.zsh`
-
-## 🛠️ Customization
-
-- Edit `~/.zshrc` to modify plugins, aliases, and settings
-- Run `p10k configure` anytime to reconfigure your prompt theme
-- Add your own aliases and functions to the bottom of the `.zshrc` file
-
-## 🆘 Troubleshooting
-
-**Theme not found error?**
-- Make sure you installed powerlevel10k theme (step 3 in manual installation)
-
-**Plugins not working?**
-- Verify all plugins are installed in `~/.oh-my-zsh/custom/plugins/`
-- Check that plugin names in `.zshrc` match the folder names
-
-**Still having issues?**
-- Try the automatic installer: it handles all dependencies correctly
-- Open an issue on GitHub with your error message
+> Dieses How‑to beschreibt **ausschliesslich** die Installation meines persönlichen Zsh‑Workflows unter **Ubuntu 22.04 LTS (oder neuer)**.
+> Powerlevel10k Prompt, Oh My Zsh und sämtliche Plugins für Laravel, Git, Docker, Node/React und Python werden eingerichtet.
 
 ---
 
-Enjoy your enhanced terminal experience! 🚀
+## Schritt 0 – Voraussetzungen
+
+```bash
+sudo apt update
+sudo apt install -y zsh git curl fzf autojump \
+  build-essential libssl-dev zlib1g-dev libbz2-dev \
+  libreadline-dev libsqlite3-dev python3-pip
+```
+
+| Tool          | Zweck                       |
+| ------------- | --------------------------- |
+| `zsh`         | moderne Shell               |
+| `git`, `curl` | Installer/Clone             |
+| `fzf`         | fuzzy Search & fzf‑tab      |
+| `autojump`    | schnelles Directory Hopping |
+| Build‑Libs    | notwendig für **pyenv**     |
+
+---
+
+## Schritt 1 – Zsh als Standardshell
+
+```bash
+chsh -s $(which zsh)
+exec zsh   # oder neues Terminal öffnen
+```
+
+---
+
+## Schritt 2 – Oh My Zsh installieren
+
+```bash
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+```
+
+---
+
+## Schritt 3 – Powerlevel10k Theme holen
+
+```bash
+git clone --depth=1 https://github.com/romkatv/powerlevel10k.git \
+  ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
+```
+
+---
+
+## Schritt 4 – Externe Plugins klonen
+
+```bash
+ZSH_CUSTOM=${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}
+
+git clone https://github.com/Aloxaf/fzf-tab                  $ZSH_CUSTOM/plugins/fzf-tab
+git clone https://github.com/zsh-users/zsh-autosuggestions   $ZSH_CUSTOM/plugins/zsh-autosuggestions
+git clone https://github.com/zsh-users/zsh-syntax-highlighting.git \
+                                                             $ZSH_CUSTOM/plugins/zsh-syntax-highlighting
+git clone https://github.com/zsh-users/zsh-completions       $ZSH_CUSTOM/plugins/zsh-completions
+```
+
+---
+
+## Schritt 5 – GitHub‑CLI & pyenv (optional aber empfohlen)
+
+```bash
+sudo apt install gh
+curl https://pyenv.run | bash
+```
+
+Folge den Anweisungen von pyenv, um die nötigen `eval`‑Zeilen in deine `.zshrc` aufzunehmen.
+
+---
+
+## Schritt 6 – `.zshrc` übernehmen
+
+Erstelle/ersetze **`~/.zshrc`** mit folgendem Basis‑Snippet (gekürzt):
+
+```zsh
+export ZSH="$HOME/.oh-my-zsh"
+ZSH_THEME="powerlevel10k/powerlevel10k"
+typeset -g POWERLEVEL9K_INSTANT_PROMPT=quiet
+
+plugins=(
+  gitfast docker laravel composer node yarn pyenv gh
+  fzf-tab zsh-autosuggestions zsh-syntax-highlighting
+  history-substring-search alias-finder autojump
+  zsh-completions command-not-found colored-man-pages
+)
+
+source $ZSH/oh-my-zsh.sh
+[[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
+```
+
+> Vollständige Aliasse und Config findest du im Repository oder in der alten README.
+
+---
+
+## Schritt 7 – Prompt konfigurieren & testen
+
+```bash
+p10k configure
+exec zsh
+```
+
+Wenn keine Fehlermeldungen erscheinen und der Prompt hübsch aussieht, ist Artur's Setup einsatzbereit ✅
+
+---
+
+### Schnelltest
+
+```bash
+git checkout <Tab>        # sollte interaktiv via fzf erscheinen
+j src                     # wechselt per autojump in letztes „src“‑Verzeichnis
+art migrate               # Laravel‑Alias läuft
+```
