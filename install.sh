@@ -134,8 +134,14 @@ print_step "Setting zsh as default shell..."
 if [ "$SHELL" = "$(which zsh)" ]; then
     print_success "zsh is already the default shell"
 else
-    chsh -s $(which zsh)
-    print_success "zsh set as default shell (will take effect on next login)"
+    # Try to change shell, but don't hang if it requires a password
+    if echo | timeout 5 chsh -s $(which zsh) >/dev/null 2>&1; then
+        print_success "zsh set as default shell (will take effect on next login)"
+    else
+        print_warning "Could not set zsh as default shell automatically"
+        print_warning "You can set it manually later with: chsh -s $(which zsh)"
+        print_warning "Or simply run 'exec zsh' to start using zsh in this session"
+    fi
 fi
 
 echo ""
