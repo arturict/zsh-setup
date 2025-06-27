@@ -1,11 +1,27 @@
 # Ubuntu Installation Guide – Artur's Z‑Shell Setup
 
-> Dieses How‑to beschreibt **ausschliesslich** die Installation meines persönlichen Zsh‑Workflows unter **Ubuntu 22.04 LTS (oder neuer)**.
-> Powerlevel10k Prompt, Oh My Zsh und sämtliche Plugins für Laravel, Git, Docker, Node/React und Python werden eingerichtet.
+> Dieses How‑to beschreibt **ausschliesslich** die Installation meines persönlichen Zsh‑Workflows unter **Ubuntu 22.04 LTS (oder neuer)**.
+> Powerlevel10k Prompt, Oh My Zsh und sämtliche Plugins für Laravel, Git, Docker, Node/React und Python werden eingerichtet.
 
 ---
 
-## Schritt 0 – Voraussetzungen
+## Installationsoptionen
+
+Du hast **zwei Möglichkeiten** für die Installation:
+
+### Option 1: Automatische Installation
+```bash
+bash <(curl -s https://raw.githubusercontent.com/arturict/zsh-setup/main/install-zsh-setup.sh)
+```
+
+### Option 2: Manuelle Installation **(Empfohlen)**
+Folge der Schritt-für-Schritt Anleitung unten für besseres Verständnis und Kontrolle über den Installationsprozess.
+
+---
+
+## Manuelle Installationsschritte
+
+## Schritt 0 – Voraussetzungen
 
 ```bash
 sudo apt update
@@ -18,13 +34,13 @@ sudo apt install -y zsh git curl fzf autojump \
 | ------------- | --------------------------- |
 | `zsh`         | moderne Shell               |
 | `git`, `curl` | Installer/Clone             |
-| `fzf`         | fuzzy Search & fzf‑tab      |
-| `autojump`    | schnelles Directory Hopping |
+| `fzf`         | fuzzy Search & fzf‑tab      |
+| `autojump`    | schnelles Directory Hopping |
 | Build‑Libs    | notwendig für **pyenv**     |
 
 ---
 
-## Schritt 1 – Zsh als Standardshell
+## Schritt 1 – Zsh als Standardshell
 
 ```bash
 chsh -s $(which zsh)
@@ -33,7 +49,7 @@ exec zsh   # oder neues Terminal öffnen
 
 ---
 
-## Schritt 2 – Oh My Zsh installieren
+## Schritt 2 – Oh My Zsh installieren
 
 ```bash
 sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
@@ -41,7 +57,7 @@ sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/too
 
 ---
 
-## Schritt 3 – Powerlevel10k Theme holen
+## Schritt 3 – Powerlevel10k Theme holen
 
 ```bash
 git clone --depth=1 https://github.com/romkatv/powerlevel10k.git \
@@ -50,7 +66,7 @@ git clone --depth=1 https://github.com/romkatv/powerlevel10k.git \
 
 ---
 
-## Schritt 4 – Externe Plugins klonen
+## Schritt 4 – Externe Plugins klonen
 
 ```bash
 ZSH_CUSTOM=${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}
@@ -64,7 +80,7 @@ git clone https://github.com/zsh-users/zsh-completions       $ZSH_CUSTOM/plugins
 
 ---
 
-## Schritt 5 – GitHub‑CLI & pyenv (optional aber empfohlen)
+## Schritt 5 – GitHub‑CLI & pyenv (optional aber empfohlen)
 
 ```bash
 sudo apt install gh
@@ -75,7 +91,7 @@ Folge den Anweisungen von pyenv, um die nötigen `eval`‑Zeilen in deine `.zshr
 
 ---
 
-## Schritt 6 – `.zshrc` übernehmen
+## Schritt 6 – `.zshrc` übernehmen
 
 Erstelle/ersetze **`~/.zshrc`** mit folgendem Basis‑Snippet (gekürzt):
 
@@ -150,10 +166,10 @@ export LANG=de_CH.UTF-8
 export LC_ALL=de_CH.UTF-8
 ```
 
-> Vollständige Aliasse und Config findest du im Repository.
+> Vollständige Aliasse und Config findest du im [Repository](https://github.com/arturict/zsh-setup).
 ---
 
-## Schritt 7 – Prompt konfigurieren & testen
+## Schritt 7 – Prompt konfigurieren & testen
 
 ```bash
 p10k configure
@@ -168,6 +184,6 @@ Wenn keine Fehlermeldungen erscheinen und der Prompt hübsch aussieht, ist Artur
 
 ```bash
 git checkout <Tab>        # sollte interaktiv via fzf erscheinen
-j src                     # wechselt per autojump in letztes „src“‑Verzeichnis
+j src                     # wechselt per autojump in letztes „src"‑Verzeichnis
 art migrate               # Laravel‑Alias läuft
 ```
