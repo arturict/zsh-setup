@@ -3,7 +3,24 @@
 > This how-to describes **exclusively** the installation of my personal Zsh workflow on **Ubuntu 22.04 LTS (or newer)**.
 > Powerlevel10k Prompt, Oh My Zsh and all plugins for Laravel, Git, Docker, Node/React and Python will be set up.
 
+
 ---
+
+## Installation Options
+
+You have **two options** to install this setup:
+
+### Option 1: Automated Installation
+```bash
+bash <(curl -s https://raw.githubusercontent.com/arturict/zsh-setup/main/install-zsh-setup.sh)
+```
+
+### Option 2: Manual Installation **(Recommended)**
+Follow the step-by-step guide below for better understanding and control over the installation process.
+
+---
+
+## Manual Installation Steps
 
 ## Step 0 – Prerequisites
 
@@ -150,7 +167,7 @@ export LANG=de_CH.UTF-8
 export LC_ALL=de_CH.UTF-8
 ```
 
-> Complete aliases and config can be found in the repository.
+> Complete aliases and config can be found in the [repository](https://github.com/arturict/zsh-setup).
 ---
 
 ## Step 7 – Configure Prompt & Test
