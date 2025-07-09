@@ -180,6 +180,14 @@ exec zsh
 If no error messages appear and the prompt looks nice, Artur's setup is ready to use ✅
 
 ---
+Optional:
+Locale herunterladen
+```zsh
+sudo locale-gen de_CH.UTF-8
+sudo update-locale LANG=de_CH.UTF-8
+
+```
+---
 
 ### Quick Test
 
