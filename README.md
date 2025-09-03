@@ -15,6 +15,10 @@ You have **two options** to install this setup:
 bash <(curl -s https://raw.githubusercontent.com/arturict/zsh-setup/main/install-zsh-setup.sh)
 ```
 
+After installation run & and configure powerlevel10k:
+```bash
+exec zsh
+```
 ### Option 2: Manual Installation **(Recommended)**
 Follow the step-by-step guide below for better understanding and control over the installation process.
 
