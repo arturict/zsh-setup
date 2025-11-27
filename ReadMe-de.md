@@ -207,9 +207,6 @@ export PATH="$HOME/.local/bin:$PATH"
 export BUN_INSTALL="$HOME/.bun"
 [ -d "$BUN_INSTALL" ] && export PATH="$BUN_INSTALL/bin:$PATH"
 
-# uv (installed by astral installer)
-[ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin:$PATH"
-
 export EDITOR="vim"
 export LANG=de_CH.UTF-8
 export LC_ALL=de_CH.UTF-8
