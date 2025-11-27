@@ -36,7 +36,8 @@ print_step "0" "Installing Prerequisites"
 sudo apt update
 sudo apt install -y zsh git curl fzf autojump \
     build-essential libssl-dev zlib1g-dev libbz2-dev \
-    libreadline-dev libsqlite3-dev python3-pip gh
+    libreadline-dev libsqlite3-dev python3-pip gh \
+    tmux bat ripgrep
 print_success "Prerequisites installed"
 
 # Step 1: Set Zsh as default shell
@@ -113,6 +114,24 @@ else
     print_success "pyenv already installed"
 fi
 
+# Step 5b: Install bun
+print_step "5b" "Installing bun"
+if ! command -v bun &> /dev/null; then
+    curl -fsSL https://bun.sh/install | bash
+    print_success "bun installed"
+else
+    print_success "bun already installed"
+fi
+
+# Step 5c: Install uv (fast Python package installer)
+print_step "5c" "Installing uv"
+if ! command -v uv &> /dev/null; then
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    print_success "uv installed"
+else
+    print_success "uv already installed"
+fi
+
 # Step 6: Create .zshrc configuration
 print_step "6" "Creating .zshrc Configuration"
 
@@ -142,6 +161,7 @@ plugins=(
   gitfast              # Git aliases & ultra-fast completion
   docker laravel composer node yarn pyenv
   gh                   # GitHub CLI aliases & completion
+  tmux                 # tmux aliases & completions
 
   # Comfort & Productivity
   fzf-tab              # interactive fuzzy tab completion
@@ -174,6 +194,33 @@ alias d='docker'
 alias dc='docker compose'
 alias vimdiff='vim -d'
 
+# bat (better cat) - use batcat on Ubuntu/Debian
+if command -v batcat &> /dev/null; then
+  alias bat='batcat'
+  alias cat='batcat'
+fi
+
+# ripgrep shortcuts
+alias rg='rg --smart-case'
+alias rgi='rg --ignore-case'
+
+# bun shortcuts
+alias bi='bun install'
+alias br='bun run'
+alias brd='bun run dev'
+alias bs='bun start'
+alias bx='bunx'
+alias ba='bun add'
+alias bad='bun add -d'
+
+# uv shortcuts (fast Python package manager)
+alias uvi='uv pip install'
+alias uvr='uv pip uninstall'
+alias uvs='uv pip sync'
+alias uvc='uv pip compile'
+alias uvv='uv venv'
+alias uvx='uvx'
+
 # ------------------------------------------------------------
 # Python via pyenv
 export PYENV_ROOT="$HOME/.pyenv"
@@ -189,6 +236,14 @@ fi
 # ------------------------------------------------------------
 # Paths, Locale & Default Editor
 export PATH="$HOME/.local/bin:$PATH"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+[ -d "$BUN_INSTALL" ] && export PATH="$BUN_INSTALL/bin:$PATH"
+
+# uv (installed by astral installer)
+[ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin:$PATH"
+
 export EDITOR="vim"
 export LANG=de_CH.UTF-8
 export LC_ALL=de_CH.UTF-8

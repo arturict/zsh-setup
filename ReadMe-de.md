@@ -27,7 +27,8 @@ Folge der Schritt-für-Schritt Anleitung unten für besseres Verständnis und Ko
 sudo apt update
 sudo apt install -y zsh git curl fzf autojump \
   build-essential libssl-dev zlib1g-dev libbz2-dev \
-  libreadline-dev libsqlite3-dev python3-pip
+  libreadline-dev libsqlite3-dev python3-pip \
+  tmux bat ripgrep
 ```
 
 | Tool          | Zweck                       |
@@ -36,6 +37,9 @@ sudo apt install -y zsh git curl fzf autojump \
 | `git`, `curl` | Installer/Clone             |
 | `fzf`         | fuzzy Search & fzf‑tab      |
 | `autojump`    | schnelles Directory Hopping |
+| `tmux`        | Terminal Multiplexer        |
+| `bat`         | besseres cat mit Syntax Highlighting |
+| `ripgrep`     | schnellere grep Alternative |
 | Build‑Libs    | notwendig für **pyenv**     |
 
 ---
@@ -80,14 +84,23 @@ git clone https://github.com/zsh-users/zsh-completions       $ZSH_CUSTOM/plugins
 
 ---
 
-## Schritt 5 – GitHub‑CLI & pyenv (optional aber empfohlen)
+## Schritt 5 – GitHub‑CLI, pyenv, bun & uv (optional aber empfohlen)
 
 ```bash
 sudo apt install gh
 curl https://pyenv.run | bash
+curl -fsSL https://bun.sh/install | bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
 Folge den Anweisungen von pyenv, um die nötigen `eval`‑Zeilen in deine `.zshrc` aufzunehmen.
+
+| Tool   | Zweck                                      |
+| ------ | ------------------------------------------ |
+| `gh`   | GitHub CLI                                 |
+| `pyenv`| Python Versions Manager                    |
+| `bun`  | Schnelle JavaScript Runtime & Package Manager |
+| `uv`   | Schneller Python Package Installer         |
 
 ---
 
@@ -114,6 +127,7 @@ plugins=(
   gitfast              # Git-Aliasse & ultraschnelle Completion
   docker laravel composer node yarn pyenv
   gh                   # GitHub-CLI Aliasse & Completion
+  tmux                 # tmux Aliasse & Completions
 
   # Komfort & Produktivität
   fzf-tab              # interaktive Fuzzy-Tab-Completion
@@ -146,6 +160,33 @@ alias d='docker'
 alias dc='docker compose'
 alias vimdiff='vim -d'
 
+# bat (besseres cat) - batcat auf Ubuntu/Debian
+if command -v batcat &> /dev/null; then
+  alias bat='batcat'
+  alias cat='batcat'
+fi
+
+# ripgrep shortcuts
+alias rg='rg --smart-case'
+alias rgi='rg --ignore-case'
+
+# bun shortcuts
+alias bi='bun install'
+alias br='bun run'
+alias brd='bun run dev'
+alias bs='bun start'
+alias bx='bunx'
+alias ba='bun add'
+alias bad='bun add -d'
+
+# uv shortcuts (schneller Python Package Manager)
+alias uvi='uv pip install'
+alias uvr='uv pip uninstall'
+alias uvs='uv pip sync'
+alias uvc='uv pip compile'
+alias uvv='uv venv'
+alias uvx='uvx'
+
 # ------------------------------------------------------------
 # Python via pyenv
 export PYENV_ROOT="$HOME/.pyenv"
@@ -161,6 +202,14 @@ fi
 # ------------------------------------------------------------
 # Pfade, Locale & Standard-Editor
 export PATH="$HOME/.local/bin:$PATH"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+[ -d "$BUN_INSTALL" ] && export PATH="$BUN_INSTALL/bin:$PATH"
+
+# uv (installed by astral installer)
+[ -d "$HOME/.local/bin" ] && export PATH="$HOME/.local/bin:$PATH"
+
 export EDITOR="vim"
 export LANG=de_CH.UTF-8
 export LC_ALL=de_CH.UTF-8
