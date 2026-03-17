@@ -1,235 +1,150 @@
-# Ubuntu Installation Guide – Artur's Z‑Shell Setup
+# Ubuntu Zsh Setup
 
-> Dieses How‑to beschreibt **ausschliesslich** die Installation meines persönlichen Zsh‑Workflows unter **Ubuntu 22.04 LTS (oder neuer)**.
-> Powerlevel10k Prompt, Oh My Zsh und sämtliche Plugins für Laravel, Git, Docker, Node/React und Python werden eingerichtet.
+Persoenliches Zsh-Setup fuer Ubuntu 22.04+ mit:
 
----
+- `zsh`
+- Oh My Zsh
+- Powerlevel10k
+- `fzf-tab`
+- `zsh-autosuggestions`
+- `zsh-syntax-highlighting`
+- `zsh-completions`
+- `gh`
+- `tmux`
+- `bat`
+- `ripgrep`
+- `autojump`
+- `pyenv`
+- `bun`
+- `uv`
 
-## Installationsoptionen
+Der Installer ist jetzt so gebaut, dass er sauber mit `sudo` laeuft, Systempakete mit Root installiert und trotzdem alle User-Komponenten fuer den aktuell aufrufenden Benutzer einrichtet.
 
-Du hast **zwei Möglichkeiten** für die Installation:
+## Was Jetzt Besser Laeuft
 
-### Option 1: Automatische Installation
-```bash
-bash <(curl -s https://raw.githubusercontent.com/arturict/zsh-setup/main/install-zsh-setup.sh)
-```
+- Systempakete werden per `apt-get` mit `sudo` installiert
+- Oh My Zsh, Plugins, `pyenv`, `bun` und `uv` werden fuer den Ziel-User installiert
+- Der Ziel-User wird ueber `SUDO_USER` erkannt
+- Bereits vorhandene Git-Repositories werden aktualisiert statt nur uebersprungen
+- `~/.zshrc` wird nicht mehr komplett ersetzt
+- Die gemanagte Zsh-Konfiguration liegt sauber in `~/.config/artur-zsh-setup/zshrc.zsh`
+- Der Ablauf ist etwas interaktiver, bleibt aber skriptfreundlich
+- Ein `--doctor`-Modus prueft spaeter den Setup-Zustand ohne Neuinstallation
+- `uv`/`uvx`-Completions sowie History- und Completion-UX werden moderner eingerichtet
 
-### Option 2: Manuelle Installation **(Empfohlen)**
-Folge der Schritt-für-Schritt Anleitung unten für besseres Verständnis und Kontrolle über den Installationsprozess.
+## Empfohlene Installation
 
----
-
-## Manuelle Installationsschritte
-
-## Schritt 0 – Voraussetzungen
-
-```bash
-sudo apt update
-sudo apt install -y zsh git curl fzf autojump \
-  build-essential libssl-dev zlib1g-dev libbz2-dev \
-  libreadline-dev libsqlite3-dev python3-pip \
-  tmux bat ripgrep
-```
-
-| Tool          | Zweck                       |
-| ------------- | --------------------------- |
-| `zsh`         | moderne Shell               |
-| `git`, `curl` | Installer/Clone             |
-| `fzf`         | fuzzy Search & fzf‑tab      |
-| `autojump`    | schnelles Directory Hopping |
-| `tmux`        | Terminal Multiplexer        |
-| `bat`         | besseres cat mit Syntax Highlighting |
-| `ripgrep`     | schnellere grep Alternative |
-| Build‑Libs    | notwendig für **pyenv**     |
-
----
-
-## Schritt 1 – Zsh als Standardshell
+Remote:
 
 ```bash
-chsh -s $(which zsh)
-exec zsh   # oder neues Terminal öffnen
+curl -fsSL https://raw.githubusercontent.com/arturict/zsh-setup/main/install-zsh-setup.sh | sudo bash
 ```
 
----
-
-## Schritt 2 – Oh My Zsh installieren
+Lokal:
 
 ```bash
-sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+sudo bash install-zsh-setup.sh
 ```
 
----
-
-## Schritt 3 – Powerlevel10k Theme holen
+Falls du als Root ohne `sudo` startest, setze den Ziel-User explizit:
 
 ```bash
-git clone --depth=1 https://github.com/romkatv/powerlevel10k.git \
-  ${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}/themes/powerlevel10k
+TARGET_USER=artur sudo -E bash install-zsh-setup.sh
 ```
 
----
-
-## Schritt 4 – Externe Plugins klonen
+## Optionen
 
 ```bash
-ZSH_CUSTOM=${ZSH_CUSTOM:-$HOME/.oh-my-zsh/custom}
-
-git clone https://github.com/Aloxaf/fzf-tab                  $ZSH_CUSTOM/plugins/fzf-tab
-git clone https://github.com/zsh-users/zsh-autosuggestions   $ZSH_CUSTOM/plugins/zsh-autosuggestions
-git clone https://github.com/zsh-users/zsh-syntax-highlighting.git \
-                                                             $ZSH_CUSTOM/plugins/zsh-syntax-highlighting
-git clone https://github.com/zsh-users/zsh-completions       $ZSH_CUSTOM/plugins/zsh-completions
+sudo bash install-zsh-setup.sh --yes
+sudo bash install-zsh-setup.sh --non-interactive
+sudo bash install-zsh-setup.sh --doctor
+sudo bash install-zsh-setup.sh --skip-shell-change
+sudo bash install-zsh-setup.sh --skip-optional-tools
 ```
 
----
+## Was Installiert Wird
 
-## Schritt 5 – GitHub‑CLI, pyenv, bun & uv (optional aber empfohlen)
+Systempakete via `apt`:
 
 ```bash
-sudo apt install gh
-curl https://pyenv.run | bash
-curl -fsSL https://bun.sh/install | bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
+autojump bat build-essential ca-certificates command-not-found curl fzf gh git \
+libbz2-dev libffi-dev liblzma-dev libncursesw5-dev libreadline-dev libsqlite3-dev \
+libssl-dev libxml2-dev libxmlsec1-dev libzstd-dev make patch python3-pip \
+python3-venv ripgrep tk-dev tmux unzip xz-utils zlib1g-dev zsh
 ```
 
-Folge den Anweisungen von pyenv, um die nötigen `eval`‑Zeilen in deine `.zshrc` aufzunehmen.
+User-Komponenten:
 
-| Tool   | Zweck                                      |
-| ------ | ------------------------------------------ |
-| `gh`   | GitHub CLI                                 |
-| `pyenv`| Python Versions Manager                    |
-| `bun`  | Schnelle JavaScript Runtime & Package Manager |
-| `uv`   | Schneller Python Package Installer         |
+- Oh My Zsh
+- Powerlevel10k
+- `fzf-tab`
+- `zsh-autosuggestions`
+- `zsh-syntax-highlighting`
+- `zsh-completions`
+- `pyenv`
+- `bun`
+- `uv`
 
----
+## Konfigurationslayout
 
-## Schritt 6 – `.zshrc` übernehmen
+Der Installer schreibt:
 
-Erstelle/ersetze **`~/.zshrc`** mit folgendem Basis‑Snippet (gekürzt):
+- `~/.config/artur-zsh-setup/zshrc.zsh`
+- `~/.config/artur-zsh-setup/zprofile.zsh`
+- `~/.config/artur-zsh-setup/completions/uv.zsh`
+- `~/.config/artur-zsh-setup/completions/uvx.zsh`
+- einen kleinen Loader-Block oben in `~/.zshrc`
+- einen kleinen Loader-Block oben in `~/.zprofile`
 
-```zsh
-# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
-# Initialization code that may require console input (password prompts, [y/n]
-# confirmations, etc.) must go above this block; everything else may go below.
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
+Wenn `~/.zshrc` schon existiert und noch nicht von diesem Installer verwaltet wurde, wird vorher ein Backup angelegt.
 
-# ~/.zshrc
-# ------------------------------------------------------------
-export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="powerlevel10k/powerlevel10k"
+## Hinweise Zu Den Tools
 
-# Plugins
-plugins=(
-  # Speed- & Dev-Stack
-  gitfast              # Git-Aliasse & ultraschnelle Completion
-  docker laravel composer node yarn pyenv
-  gh                   # GitHub-CLI Aliasse & Completion
-  tmux                 # tmux Aliasse & Completions
+- `pyenv` landet in `~/.pyenv`
+- `bun` landet in `~/.bun`
+- `uv` landet in `~/.local/bin`
+- `pyenv` wird korrekt vor der Initialisierung in den `PATH` aufgenommen
+- Die optionale native `pyenv`-Erweiterung wird wenn moeglich mitgebaut und beschleunigt Starts
+- `fzf`-Bindings werden von Ubuntus Paketpfaden geladen, falls vorhanden
+- `uv`- und `uvx`-Completions werden in das gemanagte Verzeichnis erzeugt
+- Die Zsh-History liegt sauber in `~/.local/state/zsh/history` mit besserer Duplikat-Filterung
+- Login-Shell-Pfade laufen ueber ein gemanagtes Include in `~/.zprofile`, damit `pyenv` dort sauber verfuegbar ist
 
-  # Komfort & Produktivität
-  fzf-tab              # interaktive Fuzzy-Tab-Completion
-  zsh-autosuggestions zsh-syntax-highlighting
-  history-substring-search alias-finder autojump
-  zsh-completions command-not-found colored-man-pages
-)
+## Nach Der Installation
 
-source $ZSH/oh-my-zsh.sh
-[[ -f ~/.p10k.zsh ]] && source ~/.p10k.zsh
-
-# ------------------------------------------------------------
-# Keybindings für history-substring-search (↑ / ↓ durchsuchen)
-bindkey '^[[A' history-substring-search-up
-bindkey '^[[B' history-substring-search-down
-
-# autojump initialisieren (Pfad kann je nach Distro variieren)
-[ -f /usr/share/autojump/autojump.zsh ] && source /usr/share/autojump/autojump.zsh
-
-# ------------------------------------------------------------
-# Eigene Aliasse
-alias art='php artisan'
-alias sail='./vendor/bin/sail'
-alias ni='npm install'
-alias nr='npm run'
-alias nrd='npm run dev'
-alias ns='npm start'
-alias ys='yarn start'
-alias d='docker'
-alias dc='docker compose'
-alias vimdiff='vim -d'
-
-# bat (besseres cat) - batcat auf Ubuntu/Debian
-if command -v batcat &> /dev/null; then
-  alias bat='batcat'
-  alias cat='batcat'
-fi
-
-# ripgrep shortcuts
-alias rg='rg --smart-case'
-alias rgi='rg --ignore-case'
-
-# bun shortcuts
-alias bi='bun install'
-alias br='bun run'
-alias brd='bun run dev'
-alias bs='bun start'
-alias bx='bunx'
-alias ba='bun add'
-alias bad='bun add -d'
-
-# uv shortcuts (schneller Python Package Manager)
-alias uvi='uv pip install'
-alias uvr='uv pip uninstall'
-alias uvs='uv pip sync'
-alias uvc='uv pip compile'
-alias uvv='uv venv'
-alias uvx='uvx'
-
-# ------------------------------------------------------------
-# Python via pyenv
-export PYENV_ROOT="$HOME/.pyenv"
-if command -v pyenv >/dev/null; then
-  eval "$(pyenv init --path)"
-  eval "$(pyenv init -)"
-fi
-
-# ------------------------------------------------------------
-# FZF (falls installiert)
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-
-# ------------------------------------------------------------
-# Pfade, Locale & Standard-Editor
-export PATH="$HOME/.local/bin:$PATH"
-
-# bun
-export BUN_INSTALL="$HOME/.bun"
-[ -d "$BUN_INSTALL" ] && export PATH="$BUN_INSTALL/bin:$PATH"
-
-export EDITOR="vim"
-export LANG=de_CH.UTF-8
-export LC_ALL=de_CH.UTF-8
-```
-
-> Vollständige Aliasse und Config findest du im [Repository](https://github.com/arturict/zsh-setup).
----
-
-## Schritt 7 – Prompt konfigurieren & testen
+Neues Terminal oeffnen oder:
 
 ```bash
-p10k configure
 exec zsh
 ```
 
-Wenn keine Fehlermeldungen erscheinen und der Prompt hübsch aussieht, ist Artur's Setup einsatzbereit ✅
-
----
-
-### Schnelltest
+Danach optional:
 
 ```bash
-git checkout <Tab>        # sollte interaktiv via fzf erscheinen
-j src                     # wechselt per autojump in letztes „src"‑Verzeichnis
-art migrate               # Laravel‑Alias läuft
+p10k configure
 ```
+
+Schnelltests:
+
+```bash
+bun --version
+uv --version
+pyenv --version
+bash install-zsh-setup.sh --doctor
+git checkout <Tab>
+j src
+```
+
+## Upstream-Referenzen
+
+Diese Upstream-Pfade wurden beim Update des Repos am 17. Maerz 2026 geprueft:
+
+- Oh My Zsh Install-Skript: `https://ohmyz.sh/#install`
+- `uv` Install-Doku: `https://docs.astral.sh/uv/getting-started/installation/`
+- Bun Install-Doku: `https://bun.com/docs/installation`
+- pyenv Install-Doku: `https://github.com/pyenv/pyenv?tab=readme-ov-file#installation`
+
+## Getestet Auf
+
+- Ubuntu 24.04 LTS (saubere Container-Installation + Doctor-Verifikation)
+- Ubuntu 22.04+ (Haupt-Ziel)
