@@ -1,6 +1,8 @@
-# Ubuntu Zsh Setup
+# Artur Shell Setup
 
-Personal Zsh setup for Ubuntu 22.04+ with:
+Personal shell setup for Ubuntu 22.04+ and Windows.
+
+On Ubuntu it installs a Zsh setup with:
 
 - `zsh`
 - Oh My Zsh
@@ -18,7 +20,25 @@ Personal Zsh setup for Ubuntu 22.04+ with:
 - `bun`
 - `uv`
 
-The installer is now designed to be safe to run with `sudo` while still installing user-level tools and shell config for the original invoking user.
+On Windows it installs a polished PowerShell/Windows Terminal setup with:
+
+- PowerShell 7
+- Windows Terminal
+- Oh My Posh with a Powerlevel10k-like theme
+- PSReadLine history and prediction UX
+- `Terminal-Icons`
+- `posh-git`
+- `PSFzf`
+- `CompletionPredictor`
+- `fzf`
+- `zoxide`
+- `gh`
+- `bat`
+- `ripgrep`
+- `bun`
+- `uv`
+
+The Ubuntu installer is designed to be safe to run with `sudo` while still installing user-level tools and shell config for the original invoking user. The Windows installer uses `winget` for applications and `Install-Module -Scope CurrentUser` for PowerShell modules.
 
 ## What Changed
 
@@ -33,6 +53,26 @@ The installer is now designed to be safe to run with `sudo` while still installi
 - Refreshes `uv`/`uvx` completions and enables a more polished completion and history setup
 
 ## Recommended Install
+
+Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/arturict/zsh-setup/main/install.ps1 | iex
+```
+
+Windows local:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1
+```
+
+PowerShell 7 local:
+
+```powershell
+pwsh -ExecutionPolicy Bypass -File ./install.ps1
+```
+
+Ubuntu remote:
 
 Remote:
 
@@ -53,6 +93,19 @@ TARGET_USER=artur sudo -E bash install-zsh-setup.sh
 ```
 
 ## Flags
+
+Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Yes
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -NonInteractive
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Doctor
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -SkipWinget
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -SkipModules
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -SkipOptionalTools
+```
+
+Ubuntu:
 
 ```bash
 sudo bash install-zsh-setup.sh --yes
@@ -87,7 +140,7 @@ User-level components:
 
 ## Configuration Layout
 
-The installer writes:
+The Ubuntu installer writes:
 
 - `~/.config/artur-zsh-setup/zshrc.zsh`
 - `~/.config/artur-zsh-setup/zprofile.zsh`
@@ -97,6 +150,15 @@ The installer writes:
 - a loader block at the top of `~/.zprofile`
 
 If `~/.zshrc` already exists and has not been managed by this installer before, it is backed up first.
+
+The Windows installer writes:
+
+- `~/.config/artur-powershell-setup/profile.ps1`
+- a loader block in the current-user PowerShell profile
+- a loader block in the current-user all-hosts PowerShell profile
+- PowerShell history under `~/.local/state/powershell/history.txt`
+
+If a PowerShell profile already exists and has not been managed by this installer before, it is backed up first.
 
 ## Tool Notes
 
@@ -111,6 +173,26 @@ If `~/.zshrc` already exists and has not been managed by this installer before, 
 - login-shell PATH bootstrapping lives in a managed `~/.zprofile` include so `pyenv` works cleanly in login shells too
 
 ## After Install
+
+Windows:
+
+Open a new Windows Terminal tab, or run:
+
+```powershell
+. $PROFILE
+```
+
+Quick checks:
+
+```powershell
+bun --version
+uv --version
+oh-my-posh --version
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Doctor
+j src
+```
+
+Ubuntu:
 
 Open a new terminal, or run:
 
@@ -148,3 +230,4 @@ These upstream install locations were checked when updating this repo on March 1
 
 - Ubuntu 24.04 LTS (clean container install + doctor verification)
 - Ubuntu 22.04+ (primary target)
+- Windows 11 with Windows PowerShell 5.1 and PowerShell 7
