@@ -1,233 +1,136 @@
-# Artur Shell Setup
+# devhub setup
 
-Personal shell setup for Ubuntu 22.04+ and Windows.
+One-command development environment for Ubuntu, WSL and Windows. It installs a consistent shell, tmux workflow, developer tools, AI CLIs and the interactive `devhub` learning dashboard.
 
-On Ubuntu it installs a Zsh setup with:
+## Install
 
-- `zsh`
-- Oh My Zsh
-- Powerlevel10k
-- `fzf-tab`
-- `zsh-autosuggestions`
-- `zsh-syntax-highlighting`
-- `zsh-completions`
-- `gh`
-- `tmux`
-- `bat`
-- `ripgrep`
-- `autojump`
-- `pyenv`
-- `bun`
-- `uv`
+Ubuntu or WSL:
 
-On Windows it installs a polished PowerShell/Windows Terminal setup with:
-
-- PowerShell 7
-- Windows Terminal
-- Oh My Posh with a Powerlevel10k-like theme
-- PSReadLine history and prediction UX
-- `Terminal-Icons`
-- `posh-git`
-- `PSFzf`
-- `CompletionPredictor`
-- `fzf`
-- `zoxide`
-- `gh`
-- `bat`
-- `ripgrep`
-- `bun`
-- `uv`
-
-The Ubuntu installer is designed to be safe to run with `sudo` while still installing user-level tools and shell config for the original invoking user. The Windows installer uses `winget` for applications and `Install-Module -Scope CurrentUser` for PowerShell modules.
-
-## What Changed
-
-- Uses `apt-get` for system packages and installs them with `sudo`
-- Installs Oh My Zsh, plugins, `pyenv`, `bun`, and `uv` for the target user
-- Detects the target account from `SUDO_USER`
-- Updates existing git-based tools instead of only skipping them
-- Keeps `~/.zshrc` clean by adding a small loader block instead of overwriting the whole file
-- Writes the managed config to `~/.config/artur-zsh-setup/zshrc.zsh`
-- Adds a few prompts so the install stays interactive without being noisy
-- Adds a `--doctor` health check mode so you can verify the setup later without reinstalling
-- Refreshes `uv`/`uvx` completions and enables a more polished completion and history setup
-
-## Recommended Install
+```bash
+curl -fsSL https://raw.githubusercontent.com/arturict/zsh-setup/main/setup.sh | bash
+```
 
 Windows PowerShell:
 
 ```powershell
-irm https://raw.githubusercontent.com/arturict/zsh-setup/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/arturict/zsh-setup/main/setup.ps1 | iex
 ```
 
-Windows local:
+The scripts are safe to run again for updates. Existing shell files are backed up before the managed loader is added. Authentication secrets are never stored in this repository.
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1
-```
+## What it installs
 
-PowerShell 7 local:
+Ubuntu and WSL:
 
-```powershell
-pwsh -ExecutionPolicy Bypass -File ./install.ps1
-```
-
-Ubuntu remote:
-
-Remote:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/arturict/zsh-setup/main/install-zsh-setup.sh | sudo bash
-```
-
-Local:
-
-```bash
-sudo bash install-zsh-setup.sh
-```
-
-If you run the script as root without `sudo`, set the target user explicitly:
-
-```bash
-TARGET_USER=artur sudo -E bash install-zsh-setup.sh
-```
-
-## Flags
+- Zsh, Oh My Zsh, Powerlevel10k and completion plugins
+- Git, GitHub CLI, fzf, ripgrep, bat, tmux and build tools
+- Node.js LTS through nvm, Bun, uv and pyenv
+- Codex CLI, Claude Code and OpenCode
+- `~/repos`, `~/school` and `~/scratch`
+- a persistent, visually clear tmux configuration
+- `devhub` and the `t` project-session command
 
 Windows:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -Yes
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -NonInteractive
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -Doctor
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -SkipWinget
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -SkipModules
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -SkipOptionalTools
-```
+- Windows Terminal, PowerShell, Git, GitHub CLI, VS Code and Tailscale via winget
+- Ubuntu via WSL when WSL is missing
+- the PowerShell edition of `devhub`
 
-Ubuntu:
+Linux development tools stay inside Ubuntu/WSL. Windows remains the host for Windows Terminal, VS Code, Tailscale and WSL lifecycle management.
 
-```bash
-sudo bash install-zsh-setup.sh --yes
-sudo bash install-zsh-setup.sh --non-interactive
-sudo bash install-zsh-setup.sh --doctor
-sudo bash install-zsh-setup.sh --skip-shell-change
-sudo bash install-zsh-setup.sh --skip-optional-tools
-```
+## Guided CLI
 
-## Installed Components
-
-System packages via `apt`:
+Open the fullscreen dashboard:
 
 ```bash
-autojump bat build-essential ca-certificates command-not-found curl fzf gh git \
-libbz2-dev libffi-dev liblzma-dev libncursesw5-dev libreadline-dev libsqlite3-dev \
-libssl-dev libxml2-dev libxmlsec1-dev libzstd-dev make patch python3-pip \
-python3-venv ripgrep tk-dev tmux unzip xz-utils zlib1g-dev zsh
+devhub
 ```
 
-User-level components:
-
-- Oh My Zsh
-- Powerlevel10k
-- `fzf-tab`
-- `zsh-autosuggestions`
-- `zsh-syntax-highlighting`
-- `zsh-completions`
-- `pyenv`
-- `bun`
-- `uv`
-
-## Configuration Layout
-
-The Ubuntu installer writes:
-
-- `~/.config/artur-zsh-setup/zshrc.zsh`
-- `~/.config/artur-zsh-setup/zprofile.zsh`
-- `~/.config/artur-zsh-setup/completions/uv.zsh`
-- `~/.config/artur-zsh-setup/completions/uvx.zsh`
-- a loader block at the top of `~/.zshrc`
-- a loader block at the top of `~/.zprofile`
-
-If `~/.zshrc` already exists and has not been managed by this installer before, it is backed up first.
-
-The Windows installer writes:
-
-- `~/.config/artur-powershell-setup/profile.ps1`
-- a loader block in the current-user PowerShell profile
-- a loader block in the current-user all-hosts PowerShell profile
-- PowerShell history under `~/.local/state/powershell/history.txt`
-
-If a PowerShell profile already exists and has not been managed by this installer before, it is backed up first.
-
-## Tool Notes
-
-- `pyenv` is installed in `~/.pyenv`
-- `bun` is installed in `~/.bun`
-- `uv` is installed in `~/.local/bin`
-- `pyenv` is added to `PATH` correctly before initialization
-- `pyenv` gets its optional native extension build when possible for faster startup
-- `fzf` shell bindings are loaded from Ubuntu's packaged examples when available
-- `uv` and `uvx` shell completions are generated into the managed config directory
-- history is moved into `~/.local/state/zsh/history` with modern duplicate filtering and sharing enabled
-- login-shell PATH bootstrapping lives in a managed `~/.zprofile` include so `pyenv` works cleanly in login shells too
-
-## After Install
-
-Windows:
-
-Open a new Windows Terminal tab, or run:
-
-```powershell
-. $PROFILE
-```
-
-Quick checks:
-
-```powershell
-bun --version
-uv --version
-oh-my-posh --version
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -Doctor
-j src
-```
-
-Ubuntu:
-
-Open a new terminal, or run:
+Direct commands:
 
 ```bash
-exec zsh
+devhub doctor       # installation and auth health
+devhub tmux         # tmux cheat sheet
+devhub sessions     # open the current project workspace
+devhub learn        # guided short lessons
+devhub tips         # searchable command library
+devhub auth         # login instructions without exposing tokens
+devhub update       # pull a clean copy and re-run setup
 ```
 
-Then optionally configure the prompt:
+The dashboard rotates practical reminders and tracks completed lessons locally under `~/.local/state/devhub`. It never uploads usage data.
+
+## tmux workflow
+
+Inside any project:
 
 ```bash
-p10k configure
+t
 ```
 
-Quick checks:
+This creates or resumes a session named after the current directory. Interactive SSH logins automatically create or resume the `main` session.
+
+| Shortcut | Action |
+|---|---|
+| `Ctrl-a s` | select sessions and windows |
+| `Ctrl-a c` | new window in the current directory |
+| `Ctrl-a \|` | split left/right |
+| `Ctrl-a -` | split top/bottom |
+| `Ctrl-a h/j/k/l` | move between panes |
+| `Ctrl-a d` | detach while processes keep running |
+| `Ctrl-a r` | reload configuration |
+
+The status bar always shows the machine hostname, session, window, current path and time. This is important when working across WSL and multiple Tailscale machines.
+
+## Authentication
+
+Installers deliberately do not copy or commit credentials. Log in once on each machine:
 
 ```bash
-bun --version
-uv --version
-pyenv --version
-bash install-zsh-setup.sh --doctor
-git checkout <Tab>
-j src
+gh auth login
+codex login
+opencode auth login
+claude /login
+devhub doctor
 ```
 
-## Upstream References
+Subscription sessions and API keys remain in each tool's protected user configuration.
 
-These upstream install locations were checked when updating this repo on March 17, 2026:
+## Installer options
 
-- Oh My Zsh install script: `https://ohmyz.sh/#install`
-- `uv` install docs: `https://docs.astral.sh/uv/getting-started/installation/`
-- Bun install docs: `https://bun.com/docs/installation`
-- pyenv install docs: `https://github.com/pyenv/pyenv?tab=readme-ov-file#installation`
+```bash
+bash setup.sh --yes
+bash setup.sh --non-interactive
+bash setup.sh --doctor
+bash setup.sh --skip-shell-change
+bash setup.sh --skip-optional-tools
+```
 
-## Tested On
+## Managed files
 
-- Ubuntu 24.04 LTS (clean container install + doctor verification)
-- Ubuntu 22.04+ (primary target)
-- Windows 11 with Windows PowerShell 5.1 and PowerShell 7
+```text
+~/.config/artur-zsh-setup/
+├── zshrc.zsh
+├── zprofile.zsh
+├── tmux-auto.zsh
+├── tmux-auto.bash
+└── content/
+~/.local/bin/devhub
+~/.local/bin/t
+~/.tmux.conf
+```
+
+The installer only adds marked loader blocks to `.zshrc`/`.zprofile` and one guarded tmux loader to `.bashrc` where applicable.
+
+## Repository layout
+
+```text
+assets/                 managed tmux and shell integration
+bin/                    devhub and helper commands
+content/                tips and guided lessons
+install-zsh-setup.sh    Ubuntu/WSL implementation
+setup.sh                Linux entry point
+setup.ps1               Windows entry point
+```
+
+Supported systems: Ubuntu 22.04+, Ubuntu 24.04+, Ubuntu 26.04 and WSL running Ubuntu. Other Linux distributions intentionally fail with a clear message.

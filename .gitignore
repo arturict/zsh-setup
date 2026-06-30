@@ -1,0 +1,8 @@
+.DS_Store
+*.backup.*
+*.log
+.env
+.env.*
+!.env.example
+auth.json
+credentials.json

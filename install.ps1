@@ -49,6 +49,8 @@ $WingetPackages = @(
   @{ Id = "Microsoft.WindowsTerminal"; Name = "Windows Terminal" },
   @{ Id = "Git.Git"; Name = "Git" },
   @{ Id = "GitHub.cli"; Name = "GitHub CLI" },
+  @{ Id = "Microsoft.VisualStudioCode"; Name = "Visual Studio Code" },
+  @{ Id = "Tailscale.Tailscale"; Name = "Tailscale" },
   @{ Id = "JanDeDobbeleer.OhMyPosh"; Name = "Oh My Posh" },
   @{ Id = "junegunn.fzf"; Name = "fzf" },
   @{ Id = "BurntSushi.ripgrep.MSVC"; Name = "ripgrep" },
@@ -160,6 +162,8 @@ function Install-WingetPackage([hashtable]$Package) {
     "Microsoft.WindowsTerminal" { "wt" }
     "Git.Git" { "git" }
     "GitHub.cli" { "gh" }
+    "Microsoft.VisualStudioCode" { "code" }
+    "Tailscale.Tailscale" { "tailscale" }
     "JanDeDobbeleer.OhMyPosh" { "oh-my-posh" }
     "junegunn.fzf" { "fzf" }
     "BurntSushi.ripgrep.MSVC" { "rg" }
@@ -467,6 +471,8 @@ function Invoke-Doctor {
   Invoke-Check "PowerShell is available" { $PSVersionTable.PSVersion -or (Test-Command "pwsh") -or (Test-Command "powershell.exe") } | Out-Null
   Invoke-Check "git is available" { Test-Command "git" } | Out-Null
   Invoke-Check "gh is available" { Test-Command "gh" } | Out-Null
+  Invoke-Check "VS Code is available" { Test-Command "code" } | Out-Null
+  Invoke-Check "Tailscale is available" { Test-Command "tailscale" } | Out-Null
   Invoke-Check "oh-my-posh is available" { Test-Command "oh-my-posh" } | Out-Null
   Invoke-Check "fzf is available" { Test-Command "fzf" } | Out-Null
   Invoke-Check "ripgrep is available" { Test-Command "rg" } | Out-Null

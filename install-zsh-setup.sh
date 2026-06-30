@@ -12,6 +12,8 @@ PYENV_REPO="https://github.com/pyenv/pyenv.git"
 OH_MY_ZSH_INSTALL_URL="https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh"
 BUN_INSTALL_URL="https://bun.com/install"
 UV_INSTALL_URL="https://astral.sh/uv/install.sh"
+NVM_INSTALL_URL="https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh"
+SOURCE_DIR="${DEVHUB_SOURCE_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 
 APT_PACKAGES=(
   autojump
@@ -34,6 +36,7 @@ APT_PACKAGES=(
   libxmlsec1-dev
   libzstd-dev
   make
+  nodejs
   patch
   python3-pip
   python3-venv
@@ -55,6 +58,7 @@ DOCTOR_ONLY=0
 EXPECT_PYENV=1
 EXPECT_BUN=1
 EXPECT_UV=1
+EXPECT_AI=1
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   cat <<EOF
@@ -65,7 +69,7 @@ Options:
   --non-interactive     Disable prompts entirely.
   --doctor              Verify the current setup without changing anything.
   --skip-shell-change   Do not run chsh.
-  --skip-optional-tools Skip pyenv, bun and uv.
+  --skip-optional-tools Skip pyenv, bun, uv and AI CLIs.
   --help, -h            Show this help text.
 
 Recommended:
@@ -94,6 +98,7 @@ while [[ $# -gt 0 ]]; do
       EXPECT_PYENV=0
       EXPECT_BUN=0
       EXPECT_UV=0
+      EXPECT_AI=0
       ;;
     *)
       echo "Unknown option: $1" >&2
@@ -223,6 +228,7 @@ TARGET_PROFILE_FILE="$TARGET_CONFIG_DIR/zprofile.zsh"
 TARGET_COMPLETIONS_DIR="$TARGET_CONFIG_DIR/completions"
 TARGET_ZSHRC="$TARGET_HOME/.zshrc"
 TARGET_ZPROFILE="$TARGET_HOME/.zprofile"
+TARGET_BASHRC="$TARGET_HOME/.bashrc"
 TARGET_SHELL="$(getent passwd "$TARGET_USER" | cut -d: -f7)"
 ZSH_BIN="${ZSH_BIN:-/usr/bin/zsh}"
 
@@ -465,6 +471,12 @@ if [[ -d "$PYENV_ROOT/bin" ]]; then
   export PATH="$PYENV_ROOT/bin:$PATH"
 fi
 
+export NVM_DIR="$HOME/.nvm"
+if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+  source "$NVM_DIR/nvm.sh"
+fi
+
+# Keep Bun after nvm so the managed Bun OpenCode binary wins over stale npm shims.
 export BUN_INSTALL="$HOME/.bun"
 if [[ -d "$BUN_INSTALL/bin" ]]; then
   export PATH="$BUN_INSTALL/bin:$PATH"
@@ -649,6 +661,11 @@ if [[ -d "$PYENV_ROOT/bin" ]]; then
   export PATH="$PYENV_ROOT/bin:$PATH"
 fi
 
+export NVM_DIR="$HOME/.nvm"
+if [[ -s "$NVM_DIR/nvm.sh" ]]; then
+  source "$NVM_DIR/nvm.sh"
+fi
+
 export BUN_INSTALL="$HOME/.bun"
 if [[ -d "$BUN_INSTALL/bin" ]]; then
   export PATH="$BUN_INSTALL/bin:$PATH"
@@ -801,8 +818,69 @@ install_optional_tools() {
   fi
 }
 
+install_ai_clis() {
+  print_step "4" "Installing development and AI CLIs"
+
+  if [[ "$SKIP_OPTIONAL_TOOLS" -eq 1 ]]; then
+    print_warning "Skipping AI CLIs because optional tools were disabled"
+    record_status skipped "Codex, Claude Code and OpenCode"
+    return
+  fi
+
+  if ! run_as_target_user "[[ -s '$TARGET_HOME/.nvm/nvm.sh' ]]"; then
+    run_as_target_user "PROFILE=/dev/null curl -fsSL '$NVM_INSTALL_URL' | PROFILE=/dev/null bash"
+    record_status installed "nvm"
+  else
+    record_status skipped "nvm already installed"
+  fi
+
+  run_as_target_user "export NVM_DIR='$TARGET_HOME/.nvm'; . '$TARGET_HOME/.nvm/nvm.sh'; nvm install --lts; nvm alias default 'lts/*'; npm install -g @openai/codex @anthropic-ai/claude-code"
+  run_as_target_user "export BUN_INSTALL='$TARGET_HOME/.bun'; export PATH='\$BUN_INSTALL/bin:\$PATH'; bun add -g opencode-ai"
+  print_success "Codex, Claude Code and OpenCode installed or updated"
+}
+
+install_devhub_assets() {
+  print_step "5" "Installing devhub, tmux and learning content"
+  local bin_dir="$TARGET_HOME/.local/bin"
+  local content_dir="$TARGET_CONFIG_DIR/content"
+
+  ensure_directory "$bin_dir"
+  ensure_directory "$content_dir"
+  ensure_directory "$TARGET_HOME/repos"
+  ensure_directory "$TARGET_HOME/school"
+  ensure_directory "$TARGET_HOME/scratch"
+
+  if is_root; then
+    install -o "$TARGET_USER" -g "$TARGET_USER" -m 0755 "$SOURCE_DIR/bin/devhub" "$bin_dir/devhub"
+    install -o "$TARGET_USER" -g "$TARGET_USER" -m 0755 "$SOURCE_DIR/bin/t" "$bin_dir/t"
+    install -o "$TARGET_USER" -g "$TARGET_USER" -m 0644 "$SOURCE_DIR/assets/tmux.conf" "$TARGET_HOME/.tmux.conf"
+    install -o "$TARGET_USER" -g "$TARGET_USER" -m 0644 "$SOURCE_DIR/assets/tmux-auto.zsh" "$TARGET_CONFIG_DIR/tmux-auto.zsh"
+    install -o "$TARGET_USER" -g "$TARGET_USER" -m 0644 "$SOURCE_DIR/assets/tmux-auto.bash" "$TARGET_CONFIG_DIR/tmux-auto.bash"
+    install -o "$TARGET_USER" -g "$TARGET_USER" -m 0644 "$SOURCE_DIR/content/tips.tsv" "$content_dir/tips.tsv"
+    install -o "$TARGET_USER" -g "$TARGET_USER" -m 0644 "$SOURCE_DIR/content/lessons.tsv" "$content_dir/lessons.tsv"
+  else
+    install -m 0755 "$SOURCE_DIR/bin/devhub" "$bin_dir/devhub"
+    install -m 0755 "$SOURCE_DIR/bin/t" "$bin_dir/t"
+    install -m 0644 "$SOURCE_DIR/assets/tmux.conf" "$TARGET_HOME/.tmux.conf"
+    install -m 0644 "$SOURCE_DIR/assets/tmux-auto.zsh" "$TARGET_CONFIG_DIR/tmux-auto.zsh"
+    install -m 0644 "$SOURCE_DIR/assets/tmux-auto.bash" "$TARGET_CONFIG_DIR/tmux-auto.bash"
+    install -m 0644 "$SOURCE_DIR/content/tips.tsv" "$content_dir/tips.tsv"
+    install -m 0644 "$SOURCE_DIR/content/lessons.tsv" "$content_dir/lessons.tsv"
+  fi
+
+  update_loader_file "$TARGET_ZSHRC" '$HOME/.config/artur-zsh-setup/zshrc.zsh' '~/.zshrc'
+  if ! run_as_target_user "grep -Fq 'artur-zsh-setup/tmux-auto.zsh' '$TARGET_ZSHRC'"; then
+    run_as_target_user "printf '\n[[ -f \"\$HOME/.config/artur-zsh-setup/tmux-auto.zsh\" ]] && source \"\$HOME/.config/artur-zsh-setup/tmux-auto.zsh\"\n' >> '$TARGET_ZSHRC'"
+  fi
+  if run_as_target_user "[[ -f '$TARGET_BASHRC' ]]" && ! run_as_target_user "grep -Fq 'artur-zsh-setup/tmux-auto.bash' '$TARGET_BASHRC'"; then
+    run_as_target_user "printf '\n[[ -f \"\$HOME/.config/artur-zsh-setup/tmux-auto.bash\" ]] && source \"\$HOME/.config/artur-zsh-setup/tmux-auto.bash\"\n' >> '$TARGET_BASHRC'"
+  fi
+  run_as_target_user "tmux -L devhub-config-test -f '$TARGET_HOME/.tmux.conf' new-session -d -s test && tmux -L devhub-config-test kill-server"
+  print_success "devhub and tmux workflow installed"
+}
+
 apply_shell_config() {
-  print_step "4" "Writing shell configuration"
+  print_step "6" "Writing shell configuration"
   write_managed_config
   write_managed_profile
   update_loader_file "$TARGET_ZSHRC" '$HOME/.config/artur-zsh-setup/zshrc.zsh' '~/.zshrc'
@@ -811,7 +889,7 @@ apply_shell_config() {
 }
 
 verify_installation() {
-  print_step "5" "Verifying installation"
+  print_step "7" "Verifying installation"
 
   verify_check "zsh is installed" "command -v zsh >/dev/null 2>&1" || true
   verify_check "git is installed" "command -v git >/dev/null 2>&1" || true
@@ -820,6 +898,13 @@ verify_installation() {
   verify_check "gh is installed" "command -v gh >/dev/null 2>&1" || true
   verify_check "ripgrep is installed" "command -v rg >/dev/null 2>&1" || true
   verify_check "tmux is installed" "command -v tmux >/dev/null 2>&1" || true
+  verify_check "devhub is installed" "run_as_target_user \"[[ -x '$TARGET_HOME/.local/bin/devhub' ]]\"" || true
+  verify_check "devhub starts" "run_as_target_user \"'$TARGET_HOME/.local/bin/devhub' --version >/dev/null\"" || true
+  if [[ "$EXPECT_AI" -eq 1 ]]; then
+    verify_check "Codex is available" "run_as_target_user \"zsh -l -c 'command -v codex >/dev/null'\"" || true
+    verify_check "Claude Code is available" "run_as_target_user \"zsh -l -c 'command -v claude >/dev/null'\"" || true
+    verify_check "OpenCode is available" "run_as_target_user \"zsh -l -c 'command -v opencode >/dev/null'\"" || true
+  fi
   verify_check "bat or batcat is installed" "command -v bat >/dev/null 2>&1 || command -v batcat >/dev/null 2>&1" || true
   verify_check "Oh My Zsh exists" "run_as_target_user \"[[ -d '$TARGET_ZSH' ]]\"" || true
   verify_check "Powerlevel10k exists" "run_as_target_user \"[[ -d '$TARGET_ZSH_CUSTOM/themes/powerlevel10k' ]]\"" || true
@@ -862,7 +947,7 @@ verify_installation() {
 }
 
 maybe_run_p10k_configure() {
-  print_step "6" "Finishing"
+  print_step "8" "Finishing"
 
   if ! prompt_yes_no "Launch 'p10k configure' now for $TARGET_USER?" "n"; then
     print_success "Skipped Powerlevel10k configuration"
@@ -957,7 +1042,9 @@ install_apt_packages
 configure_default_shell
 install_zsh_stack
 install_optional_tools
+install_ai_clis
 apply_shell_config
+install_devhub_assets
 verify_installation || true
 maybe_run_p10k_configure
 print_summary

@@ -1,0 +1,20 @@
+tmux	Ctrl-a s	Zeigt alle Sessions, Fenster und Panes in einem interaktiven Baum.
+tmux	Ctrl-a d	Trennt die Ansicht. Programme laufen auf der Maschine weiter.
+tmux	Ctrl-a | / Ctrl-a -	Teilt das Fenster rechts/links beziehungsweise oben/unten.
+tmux	Ctrl-a h/j/k/l	Wechselt wie in Vim zwischen Panes.
+tmux	t	Öffnet oder erstellt automatisch eine Session für das aktuelle Projekt.
+git	git switch -	Wechselt schnell zum zuletzt verwendeten Branch zurück.
+git	git restore -p DATEI	Wählt einzelne lokale Änderungen zum Verwerfen aus.
+git	git log --oneline --graph --all	Zeigt Branches und Historie kompakt als Graph.
+shell	Ctrl-r	Durchsucht mit fzf deine bisherige Shell-History.
+shell	Alt-c	Springt mit fzf schnell in ein Unterverzeichnis.
+shell	take NAME	Erstellt ein Verzeichnis und wechselt direkt hinein.
+search	rg TEXT	Durchsucht Dateien rekursiv, schnell und Git-aware.
+search	fzf	Wählt Dateien oder Eingaben interaktiv über Fuzzy Search.
+github	gh pr status	Zeigt deine relevanten Pull Requests für das aktuelle Repository.
+github	gh repo view --web	Öffnet das aktuelle Repository im Browser.
+ai	codex	Startet Codex im aktuellen Projektkontext.
+ai	claude	Startet Claude Code im aktuellen Projektkontext.
+ai	opencode	Startet OpenCode; Provider prüfst du mit devhub auth.
+system	devhub doctor	Prüft Installation, Konfiguration und Auth-Status ohne Änderungen.
+system	devhub update	Aktualisiert das Setup aus dem Repository und führt den Installer erneut aus.

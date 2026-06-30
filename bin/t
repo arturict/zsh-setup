@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+name="${1:-$(basename "$PWD")}" 
+name="${name//[^A-Za-z0-9_.-]/-}"
+exec tmux new-session -A -s "$name" -c "$PWD"

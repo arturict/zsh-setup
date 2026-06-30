@@ -1,0 +1,5 @@
+tmux-basics	Tmux in 60 Sekunden	t;Ctrl-a c;Ctrl-a s;Ctrl-a d	Starte im Projekt mit t. Erzeuge mit Ctrl-a c ein Fenster, wähle mit Ctrl-a s und trenne mit Ctrl-a d.
+remote-work	Sicher über SSH arbeiten	ssh x1;Ctrl-a d	Interaktive SSH-Logins landen automatisch in main. Ein Verbindungsabbruch beendet deine Programme nicht.
+project-search	Code schnell finden	rg TEXT;fzf	Nutze rg für Inhalte und fzf zur interaktiven Auswahl. Beide respektieren deinen Terminal-Workflow.
+git-safety	Git ohne lokale Arbeit zu verlieren	git status;git diff;git stash push -u	Prüfe zuerst Status und Diff. Stash inklusive untracked Dateien nur bewusst.
+ai-context	AI-Tools im richtigen Kontext	cd PROJEKT;codex	Wechsle vor dem Start in das Projekt. So erhält das Tool den korrekten Repository-Kontext.
