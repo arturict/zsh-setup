@@ -26,13 +26,18 @@ if (Test-Path (Join-Path $InstallDir '.git')) {
 
 # The repository's full Windows installer manages winget packages, PowerShell
 # modules, profiles, backups, terminal settings and its own doctor checks.
-& (Join-Path $InstallDir 'install.ps1') -Yes
+& (Join-Path $InstallDir 'install.ps1')
 
 if (Get-Command wsl -ErrorAction SilentlyContinue) {
     $distros = @(wsl --list --quiet 2>$null) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
     if (-not $distros) {
-        Write-Host 'Installiere Ubuntu in WSL. Windows kann dafür Administratorrechte oder einen Neustart verlangen.' -ForegroundColor Yellow
-        wsl --install -d Ubuntu
+        $answer = Read-Host 'Keine WSL-Distribution gefunden. Ubuntu in WSL installieren? [Y/n]'
+        if ([string]::IsNullOrWhiteSpace($answer) -or $answer -match '^[Yy]') {
+            Write-Host 'Windows kann dafür Administratorrechte oder einen Neustart verlangen.' -ForegroundColor Yellow
+            wsl --install -d Ubuntu
+        } else {
+            Write-Host 'WSL-Installation übersprungen.' -ForegroundColor Yellow
+        }
     }
 } else {
     Write-Warning 'WSL ist nicht verfügbar. Aktiviere es als Administrator mit: wsl --install -d Ubuntu'
@@ -41,6 +46,11 @@ if (Get-Command wsl -ErrorAction SilentlyContinue) {
 $BinDir = Join-Path $env:USERPROFILE '.local\bin'
 New-Item -ItemType Directory -Force $BinDir | Out-Null
 Copy-Item (Join-Path $InstallDir 'bin\devhub.ps1') (Join-Path $BinDir 'devhub.ps1') -Force
+$AppDir = Join-Path $env:USERPROFILE '.local\share\devhub'
+New-Item -ItemType Directory -Force $AppDir | Out-Null
+Copy-Item (Join-Path $InstallDir 'tui\package.json') $AppDir -Force
+Copy-Item (Join-Path $InstallDir 'tui\bun.lock') $AppDir -Force
+Copy-Item (Join-Path $InstallDir 'tui\index.ts') $AppDir -Force
 
 $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
 if (($userPath -split ';') -notcontains $BinDir) {
@@ -53,7 +63,14 @@ if (-not (Test-Path $PROFILE.CurrentUserAllHosts)) {
     New-Item -ItemType File $PROFILE.CurrentUserAllHosts | Out-Null
 }
 if (-not (Select-String -Path $PROFILE.CurrentUserAllHosts -SimpleMatch '# devhub command' -Quiet)) {
-    Add-Content $PROFILE.CurrentUserAllHosts "`n# devhub command`nfunction devhub { & `"$BinDir\devhub.ps1`" @args }"
+    Add-Content $PROFILE.CurrentUserAllHosts "`n# devhub command`nfunction devhub { if (`$args.Count -eq 0 -and (Get-Command bun -ErrorAction SilentlyContinue)) { `$env:DEVHUB_CORE = `"$BinDir\devhub.ps1`"; & bun `"$AppDir\index.ts`" } else { & `"$BinDir\devhub.ps1`" @args } }"
+}
+
+if (Get-Command bun -ErrorAction SilentlyContinue) {
+    Push-Location $AppDir
+    try { bun install --production --frozen-lockfile } finally { Pop-Location }
+} else {
+    Write-Warning 'Bun wurde übersprungen; devhub verwendet bis zur Bun-Installation die einfache PowerShell-Ansicht.'
 }
 
 Write-Host "`nWindows und devhub sind eingerichtet." -ForegroundColor Green

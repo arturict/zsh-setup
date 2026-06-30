@@ -539,7 +539,11 @@ if ($SkipOptionalTools) {
   $WingetPackages = $WingetPackages | Where-Object { $_.Id -notin @("Oven-sh.Bun", "astral-sh.uv") }
 }
 foreach ($package in $WingetPackages) {
-  Install-WingetPackage $package
+  if (Confirm-Step "Install or update $($package.Name)?" $true) {
+    Install-WingetPackage $package
+  } else {
+    $SummarySkipped.Add($package.Name) | Out-Null
+  }
 }
 
 Update-SessionPath

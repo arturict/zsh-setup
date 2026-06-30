@@ -16,7 +16,7 @@ Windows PowerShell:
 irm https://raw.githubusercontent.com/arturict/zsh-setup/main/setup.ps1 | iex
 ```
 
-Der Installer kann später erneut ausgeführt werden. Bestehende Shell-Dateien werden gesichert und nur um kleine, markierte Loader ergänzt. Auth-Tokens und API-Keys kommen niemals ins Repository.
+Der Installer kann später erneut ausgeführt werden. Bestehende Shell-Dateien werden gesichert und nur um kleine, markierte Loader ergänzt. Optionale oder grössere Installationen werden vorher einzeln bestätigt, auch beim Start über `curl`. Auth-Tokens und API-Keys kommen niemals ins Repository.
 
 ## Geführte Bedienung
 
@@ -24,7 +24,7 @@ Der Installer kann später erneut ausgeführt werden. Bestehende Shell-Dateien w
 devhub
 ```
 
-öffnet das Fullscreen-Dashboard mit Systemstatus, zufälligen Command-Tipps, Kurzlektionen und direkten Aktionen.
+öffnet das mit [OpenTUI](https://opentui.com/) gebaute Fullscreen-Dashboard mit Systemstatus, Command-Tipps, Kurzlektionen und direkten Aktionen.
 
 ```bash
 devhub doctor       # Installation und Logins prüfen
@@ -35,6 +35,10 @@ devhub tips         # Command-Bibliothek
 devhub auth         # sichere Login-Anleitung
 devhub update       # alles aktualisieren
 ```
+
+## Installationsentscheidungen
+
+Der Installer fragt vor optionalen oder grösseren Änderungen nach. Dazu gehören AI-CLIs, pyenv, Bun, uv, einzelne Windows-Anwendungen und die Installation von Ubuntu in WSL. Erst `--yes` aktiviert ausdrücklich einen unbeaufsichtigten Lauf mit den dokumentierten Standardantworten. Der minimale Ubuntu-Shell-Kern und seine Prüfwerkzeuge werden weiterhin automatisch eingerichtet.
 
 ## Arbeiten mit tmux
 

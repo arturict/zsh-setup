@@ -28,4 +28,7 @@ if ! grep -Eqi 'ubuntu|debian' /etc/os-release 2>/dev/null; then
 fi
 
 export DEVHUB_SOURCE_DIR="$SOURCE_DIR"
+if [[ -r /dev/tty && " $* " != *" --non-interactive "* ]]; then
+  exec bash "$SOURCE_DIR/install-zsh-setup.sh" "$@" </dev/tty
+fi
 exec bash "$SOURCE_DIR/install-zsh-setup.sh" "$@"

@@ -16,7 +16,7 @@ Windows PowerShell:
 irm https://raw.githubusercontent.com/arturict/zsh-setup/main/setup.ps1 | iex
 ```
 
-The scripts are safe to run again for updates. Existing shell files are backed up before the managed loader is added. Authentication secrets are never stored in this repository.
+The scripts are safe to run again for updates. Existing shell files are backed up before the managed loader is added. Optional components are presented for confirmation instead of silently installed, including when `setup.sh` is piped through `curl`. Authentication secrets are never stored in this repository.
 
 ## What it installs
 
@@ -40,7 +40,7 @@ Linux development tools stay inside Ubuntu/WSL. Windows remains the host for Win
 
 ## Guided CLI
 
-Open the fullscreen dashboard:
+Open the fullscreen dashboard, built with [OpenTUI](https://opentui.com/):
 
 ```bash
 devhub
@@ -59,6 +59,10 @@ devhub update       # pull a clean copy and re-run setup
 ```
 
 The dashboard rotates practical reminders and tracks completed lessons locally under `~/.local/state/devhub`. It never uploads usage data.
+
+## Installation choices
+
+The installer asks before optional or disruptive changes, including AI CLIs, pyenv, Bun, uv, Windows applications and installing Ubuntu in WSL. `--yes` is the explicit unattended opt-in and accepts the documented defaults. The minimal shell and verification dependencies remain automatic on Ubuntu.
 
 ## tmux workflow
 
@@ -128,6 +132,7 @@ The installer only adds marked loader blocks to `.zshrc`/`.zprofile` and one gua
 assets/                 managed tmux and shell integration
 bin/                    devhub and helper commands
 content/                tips and guided lessons
+tui/                    OpenTUI TypeScript application
 install-zsh-setup.sh    Ubuntu/WSL implementation
 setup.sh                Linux entry point
 setup.ps1               Windows entry point

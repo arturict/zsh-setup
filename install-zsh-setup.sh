@@ -59,6 +59,7 @@ EXPECT_PYENV=1
 EXPECT_BUN=1
 EXPECT_UV=1
 EXPECT_AI=1
+EXPECT_DEVHUB=1
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   cat <<EOF
@@ -99,6 +100,7 @@ while [[ $# -gt 0 ]]; do
       EXPECT_BUN=0
       EXPECT_UV=0
       EXPECT_AI=0
+      EXPECT_DEVHUB=0
       ;;
     *)
       echo "Unknown option: $1" >&2
@@ -803,10 +805,11 @@ install_optional_tools() {
     record_status skipped "pyenv"
   fi
 
-  if prompt_yes_no "Install or update bun for $TARGET_USER?" "y"; then
+  if prompt_yes_no "Install or update Bun for $TARGET_USER? (required for the OpenTUI dashboard)" "y"; then
     install_or_update_bun
   else
     EXPECT_BUN=0
+    EXPECT_DEVHUB=0
     record_status skipped "bun"
   fi
 
@@ -827,6 +830,12 @@ install_ai_clis() {
     return
   fi
 
+  if ! prompt_yes_no "Install or update Codex, Claude Code and OpenCode for $TARGET_USER?" "y"; then
+    EXPECT_AI=0
+    record_status skipped "Codex, Claude Code and OpenCode"
+    return
+  fi
+
   if ! run_as_target_user "[[ -s '$TARGET_HOME/.nvm/nvm.sh' ]]"; then
     run_as_target_user "PROFILE=/dev/null curl -fsSL '$NVM_INSTALL_URL' | PROFILE=/dev/null bash"
     record_status installed "nvm"
@@ -843,30 +852,45 @@ install_devhub_assets() {
   print_step "5" "Installing devhub, tmux and learning content"
   local bin_dir="$TARGET_HOME/.local/bin"
   local content_dir="$TARGET_CONFIG_DIR/content"
+  local app_dir="$TARGET_HOME/.local/share/devhub"
+
+  if [[ "$EXPECT_DEVHUB" -eq 0 ]]; then
+    print_warning "Skipping devhub because Bun was not selected"
+    record_status skipped "devhub OpenTUI"
+    return
+  fi
 
   ensure_directory "$bin_dir"
   ensure_directory "$content_dir"
+  ensure_directory "$app_dir"
   ensure_directory "$TARGET_HOME/repos"
   ensure_directory "$TARGET_HOME/school"
   ensure_directory "$TARGET_HOME/scratch"
 
   if is_root; then
     install -o "$TARGET_USER" -g "$TARGET_USER" -m 0755 "$SOURCE_DIR/bin/devhub" "$bin_dir/devhub"
+    install -o "$TARGET_USER" -g "$TARGET_USER" -m 0755 "$SOURCE_DIR/bin/devhub-core" "$bin_dir/devhub-core"
     install -o "$TARGET_USER" -g "$TARGET_USER" -m 0755 "$SOURCE_DIR/bin/t" "$bin_dir/t"
     install -o "$TARGET_USER" -g "$TARGET_USER" -m 0644 "$SOURCE_DIR/assets/tmux.conf" "$TARGET_HOME/.tmux.conf"
     install -o "$TARGET_USER" -g "$TARGET_USER" -m 0644 "$SOURCE_DIR/assets/tmux-auto.zsh" "$TARGET_CONFIG_DIR/tmux-auto.zsh"
     install -o "$TARGET_USER" -g "$TARGET_USER" -m 0644 "$SOURCE_DIR/assets/tmux-auto.bash" "$TARGET_CONFIG_DIR/tmux-auto.bash"
     install -o "$TARGET_USER" -g "$TARGET_USER" -m 0644 "$SOURCE_DIR/content/tips.tsv" "$content_dir/tips.tsv"
     install -o "$TARGET_USER" -g "$TARGET_USER" -m 0644 "$SOURCE_DIR/content/lessons.tsv" "$content_dir/lessons.tsv"
+    install -o "$TARGET_USER" -g "$TARGET_USER" -m 0644 "$SOURCE_DIR/tui/package.json" "$SOURCE_DIR/tui/bun.lock" "$SOURCE_DIR/tui/index.ts" "$app_dir/"
+    chown -R "$TARGET_USER:$TARGET_USER" "$app_dir"
   else
     install -m 0755 "$SOURCE_DIR/bin/devhub" "$bin_dir/devhub"
+    install -m 0755 "$SOURCE_DIR/bin/devhub-core" "$bin_dir/devhub-core"
     install -m 0755 "$SOURCE_DIR/bin/t" "$bin_dir/t"
     install -m 0644 "$SOURCE_DIR/assets/tmux.conf" "$TARGET_HOME/.tmux.conf"
     install -m 0644 "$SOURCE_DIR/assets/tmux-auto.zsh" "$TARGET_CONFIG_DIR/tmux-auto.zsh"
     install -m 0644 "$SOURCE_DIR/assets/tmux-auto.bash" "$TARGET_CONFIG_DIR/tmux-auto.bash"
     install -m 0644 "$SOURCE_DIR/content/tips.tsv" "$content_dir/tips.tsv"
     install -m 0644 "$SOURCE_DIR/content/lessons.tsv" "$content_dir/lessons.tsv"
+    install -m 0644 "$SOURCE_DIR/tui/package.json" "$SOURCE_DIR/tui/bun.lock" "$SOURCE_DIR/tui/index.ts" "$app_dir/"
   fi
+
+  run_as_target_user "cd '$app_dir' && '$TARGET_HOME/.bun/bin/bun' install --production --frozen-lockfile"
 
   update_loader_file "$TARGET_ZSHRC" '$HOME/.config/artur-zsh-setup/zshrc.zsh' '~/.zshrc'
   if ! run_as_target_user "grep -Fq 'artur-zsh-setup/tmux-auto.zsh' '$TARGET_ZSHRC'"; then
@@ -898,8 +922,10 @@ verify_installation() {
   verify_check "gh is installed" "command -v gh >/dev/null 2>&1" || true
   verify_check "ripgrep is installed" "command -v rg >/dev/null 2>&1" || true
   verify_check "tmux is installed" "command -v tmux >/dev/null 2>&1" || true
-  verify_check "devhub is installed" "run_as_target_user \"[[ -x '$TARGET_HOME/.local/bin/devhub' ]]\"" || true
-  verify_check "devhub starts" "run_as_target_user \"'$TARGET_HOME/.local/bin/devhub' --version >/dev/null\"" || true
+  if [[ "$EXPECT_DEVHUB" -eq 1 ]]; then
+    verify_check "devhub is installed" "run_as_target_user \"[[ -x '$TARGET_HOME/.local/bin/devhub' ]]\"" || true
+    verify_check "devhub starts" "run_as_target_user \"'$TARGET_HOME/.local/bin/devhub' --version >/dev/null\"" || true
+  fi
   if [[ "$EXPECT_AI" -eq 1 ]]; then
     verify_check "Codex is available" "run_as_target_user \"zsh -l -c 'command -v codex >/dev/null'\"" || true
     verify_check "Claude Code is available" "run_as_target_user \"zsh -l -c 'command -v claude >/dev/null'\"" || true

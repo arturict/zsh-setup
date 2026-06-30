@@ -6,3 +6,4 @@
 !.env.example
 auth.json
 credentials.json
+node_modules/
