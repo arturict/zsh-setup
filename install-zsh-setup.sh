@@ -36,7 +36,6 @@ APT_PACKAGES=(
   libxmlsec1-dev
   libzstd-dev
   make
-  nodejs
   patch
   python3-pip
   python3-venv
@@ -844,7 +843,7 @@ install_ai_clis() {
   fi
 
   run_as_target_user "export NVM_DIR='$TARGET_HOME/.nvm'; . '$TARGET_HOME/.nvm/nvm.sh'; nvm install --lts; nvm alias default 'lts/*'; npm install -g @openai/codex @anthropic-ai/claude-code"
-  run_as_target_user "export BUN_INSTALL='$TARGET_HOME/.bun'; export PATH='\$BUN_INSTALL/bin:\$PATH'; bun add -g opencode-ai"
+  run_as_target_user "'$TARGET_HOME/.bun/bin/bun' add -g opencode-ai"
   print_success "Codex, Claude Code and OpenCode installed or updated"
 }
 

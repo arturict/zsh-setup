@@ -74,6 +74,12 @@ t
 
 This creates or resumes a session named after the current directory. Interactive SSH logins automatically create or resume the `main` session.
 
+```bash
+t ls                 # list sessions (does not create a session named "ls")
+t NAME               # open or create a named session
+t kill NAME          # remove a session
+```
+
 | Shortcut | Action |
 |---|---|
 | `Ctrl-a s` | select sessions and windows |

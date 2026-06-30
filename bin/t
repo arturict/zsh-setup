@@ -1,5 +1,30 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
+
+case "${1:-}" in
+  ls|list)
+    exec tmux list-sessions
+    ;;
+  kill)
+    [[ -n ${2:-} ]] || { printf 'Usage: t kill SESSION\n' >&2; exit 2; }
+    exec tmux kill-session -t "$2"
+    ;;
+  help|-h|--help)
+    cat <<'EOF'
+t [SESSION]        Open or create a session (defaults to current directory)
+t ls               List sessions
+t kill SESSION     Kill one session
+EOF
+    exit 0
+    ;;
+esac
+
 name="${1:-$(basename "$PWD")}" 
 name="${name//[^A-Za-z0-9_.-]/-}"
+
+if [[ -n ${TMUX:-} ]]; then
+  tmux has-session -t "=$name" 2>/dev/null || tmux new-session -d -s "$name" -c "$PWD"
+  exec tmux switch-client -t "=$name"
+fi
+
 exec tmux new-session -A -s "$name" -c "$PWD"

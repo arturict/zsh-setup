@@ -50,6 +50,12 @@ t
 
 Die Session wird automatisch nach dem aktuellen Verzeichnis benannt und entweder erstellt oder fortgesetzt. Bei interaktiven SSH-Logins landest du automatisch in `main`.
 
+```bash
+t ls                 # Sessions auflisten
+t NAME               # benannte Session öffnen oder erstellen
+t kill NAME          # Session entfernen
+```
+
 | Tastenkürzel | Funktion |
 |---|---|
 | `Ctrl-a s` | Sessions und Fenster auswählen |
