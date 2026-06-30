@@ -3,7 +3,10 @@ set -Eeuo pipefail
 
 case "${1:-}" in
   ls|list)
-    exec tmux list-sessions
+    if ! tmux list-sessions 2>/dev/null; then
+      printf 'Keine tmux-Sessions aktiv. Starte im Projekt einfach: t\n'
+    fi
+    exit 0
     ;;
   kill)
     [[ -n ${2:-} ]] || { printf 'Usage: t kill SESSION\n' >&2; exit 2; }
