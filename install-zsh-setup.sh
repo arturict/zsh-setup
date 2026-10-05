@@ -629,11 +629,13 @@ fi
 
 if (( $+commands[pyenv] )); then
   # `pyenv init -` forks bash and rehashes on every start. Its output only
-  # changes with pyenv itself, so cache it and rehash when an installed Python
-  # gained or lost executables since the shims were last written.
+  # changes with pyenv itself or its plugins (it lists their `sh-` commands),
+  # so cache it and rehash when an installed Python gained or lost executables
+  # since the shims were last written.
   () {
     local init_cache="${XDG_CACHE_HOME:-$HOME/.cache}/artur-zsh-setup/pyenv-init.zsh"
-    if [[ ! -s $init_cache || $PYENV_ROOT/libexec/pyenv-init -nt $init_cache ]]; then
+    if [[ ! -s $init_cache || $PYENV_ROOT/libexec/pyenv-init -nt $init_cache ||
+          $PYENV_ROOT/plugins -nt $init_cache ]]; then
       mkdir -p "${init_cache:h}"
       command pyenv init - --no-push-path --no-rehash zsh >|"$init_cache.$$" &&
         mv -f "$init_cache.$$" "$init_cache"
@@ -691,38 +693,50 @@ export BUN_INSTALL="$HOME/.bun"
 path=("$HOME/.local/bin" $path)
 [[ -d "$PYENV_ROOT/bin" ]] && path=("$PYENV_ROOT/bin" $path)
 
-if [[ -s "$NVM_DIR/nvm.sh" ]] && [[ ${functions[nvm]-} != *nvm_* ]]; then
-  # Follow default -> lts/* -> lts/<codename> -> vX.Y.Z like `nvm use default`.
+# nvm_ls_current only exists once the real nvm.sh is loaded.
+if [[ -s "$NVM_DIR/nvm.sh" ]] && (( ! $+functions[nvm_ls_current] )); then
   () {
     setopt local_options extended_glob
-    local target=default
-    local -i hops
-    for (( hops = 0; hops < 8; hops++ )); do
-      [[ -r "$NVM_DIR/alias/$target" ]] || break
-      target="$(<"$NVM_DIR/alias/$target")"
-      target="${target//[[:space:]]/}"
-    done
 
-    local -a candidates
-    case $target in
-      (node|stable)
-        candidates=("$NVM_DIR"/versions/node/v*(N/nOn)) ;;
-      (v#<->(.<->)#)
-        candidates=("$NVM_DIR/versions/node/v${target#v}"(N/) "$NVM_DIR/versions/node/v${target#v}".*(N/nOn)) ;;
-    esac
+    # A parent shell already selected a version (`nvm use 18`, then `exec zsh`
+    # or a new tmux pane): keep it, as loading nvm.sh would.
+    if [[ -n ${NVM_BIN-} && $NVM_BIN == "$NVM_DIR"/versions/node/v*/bin && -d $NVM_BIN ]] &&
+       (( ${path[(Ie)$NVM_BIN]} )); then
+      :
+    else
+      # Follow default -> lts/* -> lts/<codename> -> vX.Y.Z like `nvm use default`.
+      local target=default
+      local -i hops
+      for (( hops = 0; hops < 8; hops++ )); do
+        [[ -r "$NVM_DIR/alias/$target" ]] || break
+        target="$(<"$NVM_DIR/alias/$target")"
+        target="${target//[[:space:]]/}"
+      done
 
-    if (( $#candidates )); then
+      local -a candidates
+      case $target in
+        (node|stable)
+          candidates=("$NVM_DIR"/versions/node/v*(N/nOn)) ;;
+        (v#<->(.<->)#)
+          candidates=("$NVM_DIR/versions/node/v${target#v}"(N/) "$NVM_DIR/versions/node/v${target#v}".*(N/nOn)) ;;
+      esac
+
+      if (( ! $#candidates )); then
+        # Aliases such as "system" or an uninstalled version: let nvm decide.
+        source "$NVM_DIR/nvm.sh"
+        return
+      fi
       export NVM_BIN="$candidates[1]/bin" NVM_INC="$candidates[1]/include/node"
       path=("$NVM_BIN" $path)
-      nvm() {
-        unfunction nvm
-        source "$NVM_DIR/nvm.sh" --no-use
-        nvm "$@"
-      }
-    else
-      # Aliases such as "system" or an uninstalled version: let nvm decide.
-      source "$NVM_DIR/nvm.sh"
     fi
+
+    _artur_load_nvm() {
+      unfunction nvm nvm_find_nvmrc
+      source "$NVM_DIR/nvm.sh" --no-use
+    }
+    nvm() { _artur_load_nvm && nvm "$@" }
+    # nvm's README snippet for switching on .nvmrc calls this helper directly.
+    nvm_find_nvmrc() { _artur_load_nvm && nvm_find_nvmrc "$@" }
   }
 fi
 
@@ -832,7 +846,12 @@ disable_duplicate_oh_my_zsh() {
     exit 0 unless @loads;
     my @themes = $text =~ /^[ \t]*ZSH_THEME=/mg;
     my @plugins = $text =~ /^[ \t]*plugins=/mg;
-    my $stock = @loads == 1 && @themes == 1 && @plugins == 1
+    # Oh My Zsh settings above the load line (HIST_STAMPS, zstyle, DISABLE_*)
+    # only take effect there; any active one makes the file customised.
+    my ($before) = $text =~ /\A(.*?)^source \$ZSH\/oh-my-zsh\.sh$/ms;
+    my @settings = grep { !/^[ \t]*(?:#|$)/ && !/^(?:export ZSH=.*|ZSH_THEME="robbyrussell"|plugins=\(git\))$/ }
+      split /\n/, ($before // "");
+    my $stock = @loads == 1 && @themes == 1 && @plugins == 1 && !@settings
       && $text =~ /^ZSH_THEME="robbyrussell"$/m
       && $text =~ /^plugins=\(git\)$/m
       && $text =~ /^source \$ZSH\/oh-my-zsh\.sh$/m;
@@ -1063,7 +1082,7 @@ verify_installation() {
     verify_check "Codex is available" "run_as_target_user \"zsh -l -c 'command -v codex >/dev/null'\"" || true
     verify_check "Claude Code is available" "run_as_target_user \"zsh -l -c 'command -v claude >/dev/null'\"" || true
     verify_check "OpenCode is available" "run_as_target_user \"zsh -l -c 'command -v opencode >/dev/null'\"" || true
-    verify_check "Node.js is on PATH without loading nvm" "run_as_target_user \"zsh -i -c 'command -v node >/dev/null && [[ \\\${functions[nvm]} != *nvm_* ]]'\"" || true
+    verify_check "Node.js is on PATH without loading nvm" "run_as_target_user \"zsh -i -c 'command -v node >/dev/null && (( ! \\\$+functions[nvm_ls_current] ))'\"" || true
     verify_check "nvm loads on first use" "run_as_target_user \"zsh -i -c 'nvm --version >/dev/null'\"" || true
   fi
   verify_check "bat or batcat is installed" "command -v bat >/dev/null 2>&1 || command -v batcat >/dev/null 2>&1" || true
