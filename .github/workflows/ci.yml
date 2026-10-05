@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  syntax:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bash syntax
+        run: |
+          for f in setup.sh install-zsh-setup.sh bin/t bin/devhub bin/devhub-core assets/tmux-auto.bash; do
+            bash -n "$f"
+          done
+      - name: PowerShell syntax
+        shell: pwsh
+        run: |
+          $failed = $false
+          foreach ($file in "setup.ps1", "install.ps1", "bin/devhub.ps1") {
+            $tokens = $null; $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file), [ref]$tokens, [ref]$errors) | Out-Null
+            foreach ($e in $errors) { Write-Host "::error file=$file::$e"; $failed = $true }
+          }
+          if ($failed) { exit 1 }
+
+  install:
+    # A fresh Ubuntu install followed by a re-run, the path existing machines take
+    # through `devhub update`. The installer exits non-zero when a check fails.
+    runs-on: ubuntu-24.04
+    container: ubuntu:24.04
+    steps:
+      - name: Prepare a non-root user
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y sudo git ca-certificates curl perl
+          useradd -m -s /bin/bash ci
+          echo 'ci ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/ci
+      - uses: actions/checkout@v4
+      - name: Fresh install
+        run: |
+          cp -r "$GITHUB_WORKSPACE" /home/ci/src && chown -R ci:ci /home/ci/src
+          sudo -u ci -H bash -c 'cd ~ && sudo -E bash src/setup.sh --yes'
+      - name: Re-run as update
+        run: sudo -u ci -H bash -c 'cd ~ && sudo -E bash src/setup.sh --yes'
+      - name: Interactive startup time
+        run: |
+          sudo -u ci -H bash -c 'cd ~ && zsh -i -c exit && for i in 1 2 3 4 5; do time zsh -i -c exit; done'
