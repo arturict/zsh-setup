@@ -39,10 +39,11 @@ $WindowsTerminalSettings = @(
   (Join-Path $env:LOCALAPPDATA "Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json"),
   (Join-Path $env:LOCALAPPDATA "Microsoft\Windows Terminal\settings.json")
 )
-$ProfileTargets = @(
-  $PROFILE.CurrentUserCurrentHost,
-  $PROFILE.CurrentUserAllHosts
-) | Select-Object -Unique
+# PowerShell runs both the all-hosts and the current-host profile on every
+# start. The loader lives only in the all-hosts profile so the managed profile
+# runs once; older releases also put it into the current-host profile.
+$ProfileTarget = $PROFILE.CurrentUserAllHosts
+$LegacyProfileTargets = @($PROFILE.CurrentUserCurrentHost) | Where-Object { $_ -ne $ProfileTarget }
 
 $WingetPackages = @(
   @{ Id = "Microsoft.PowerShell"; Name = "PowerShell 7" },
@@ -272,8 +273,10 @@ $env:EDITOR = if ($env:EDITOR) { $env:EDITOR } else { "code --wait" }
 $env:BAT_THEME = if ($env:BAT_THEME) { $env:BAT_THEME } else { "TwoDark" }
 $env:FZF_DEFAULT_OPTS = "--height 40% --layout=reverse --border --info=inline"
 
-if (Get-Module -ListAvailable PSReadLine) {
-  Import-Module PSReadLine
+# Import-Module only looks up the named module. Get-Module -ListAvailable reads
+# every installed module manifest and was called once per module on each start.
+Import-Module PSReadLine -ErrorAction SilentlyContinue
+if (Get-Module PSReadLine) {
   Set-PSReadLineOption -EditMode Windows
   if (-not [Console]::IsOutputRedirected) {
     try {
@@ -290,26 +293,43 @@ if (Get-Module -ListAvailable PSReadLine) {
   Set-PSReadLineKeyHandler -Key Ctrl+Spacebar -Function AcceptSuggestion
 }
 
-if (Get-Module -ListAvailable CompletionPredictor) {
-  Import-Module CompletionPredictor
-}
+Import-Module CompletionPredictor, Terminal-Icons, posh-git, PSFzf -ErrorAction SilentlyContinue
 
-if (Get-Module -ListAvailable Terminal-Icons) {
-  Import-Module Terminal-Icons
-}
-
-if (Get-Module -ListAvailable posh-git) {
-  Import-Module posh-git
-}
-
-if (Get-Module -ListAvailable PSFzf) {
-  Import-Module PSFzf
+if (Get-Module PSFzf) {
   Set-PsFzfOption -PSReadlineChordProvider "Ctrl+f" -PSReadlineChordReverseHistory "Ctrl+r"
 }
 
-if (Get-Command zoxide -ErrorAction SilentlyContinue) {
-  Invoke-Expression (& zoxide init powershell --cmd j | Out-String)
+# Shell integration scripts only change when the tool is updated. Generate them
+# once per tool version instead of starting the tool on every shell start.
+function Get-ArturShellScript {
+  param([string]$Name, [string[]]$Arguments)
+
+  $command = Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
+  if (-not $command) { return }
+
+  $cacheDir = Join-Path $global:ArturPowerShellSetup.StateDir "shell-scripts"
+  $cache = Join-Path $cacheDir "$Name-$($Arguments -join '-').ps1"
+  $cacheItem = Get-Item -LiteralPath $cache -ErrorAction SilentlyContinue
+  if (-not $cacheItem -or $cacheItem.LastWriteTimeUtc -lt (Get-Item -LiteralPath $command.Source).LastWriteTimeUtc) {
+    $script = & $command.Source @Arguments | Out-String
+    if ($LASTEXITCODE -ne 0 -or -not $script.Trim()) { return }
+    New-Item -ItemType Directory -Force -Path $cacheDir | Out-Null
+    Set-Content -LiteralPath $cache -Value $script -Encoding UTF8
+  }
+  $cache
 }
+
+# Dot-source at script level: the scripts define helpers their completers call later.
+foreach ($shellScript in @(
+  @{ Name = "zoxide"; Arguments = @("init", "powershell", "--cmd", "j") },
+  @{ Name = "gh"; Arguments = @("completion", "-s", "powershell") },
+  @{ Name = "uv"; Arguments = @("generate-shell-completion", "powershell") },
+  @{ Name = "uvx"; Arguments = @("--generate-shell-completion", "powershell") }
+)) {
+  $shellScriptPath = Get-ArturShellScript @shellScript
+  if ($shellScriptPath) { . $shellScriptPath }
+}
+Remove-Variable shellScript, shellScriptPath -ErrorAction SilentlyContinue
 
 if (Get-Command oh-my-posh -ErrorAction SilentlyContinue) {
   $themeCandidates = @(
@@ -372,21 +392,25 @@ Register-ArgumentCompleter -Native -CommandName winget -ScriptBlock {
     [System.Management.Automation.CompletionResult]::new($_, $_, "ParameterValue", $_)
   }
 }
-
-if (Get-Command gh -ErrorAction SilentlyContinue) {
-  Invoke-Expression -Command $(gh completion -s powershell | Out-String)
-}
-
-if (Get-Command uv -ErrorAction SilentlyContinue) {
-  Invoke-Expression -Command $(uv generate-shell-completion powershell | Out-String)
-}
-
-if (Get-Command uvx -ErrorAction SilentlyContinue) {
-  Invoke-Expression -Command $(uvx --generate-shell-completion powershell | Out-String)
-}
 '@ | Set-Content -Path $ManagedProfile -Encoding UTF8
 
   Write-Ok "Managed PowerShell profile written to $ManagedProfile"
+}
+
+function Remove-ProfileLoader([string]$ProfilePath) {
+  $markerStart = "# >>> artur-powershell-setup >>>"
+  $markerEnd = "# <<< artur-powershell-setup <<<"
+
+  if (-not (Test-Path $ProfilePath)) { return }
+  try {
+    $existing = Get-Content -Raw -Path $ProfilePath
+    if (-not $existing -or $existing -notmatch [regex]::Escape($markerStart)) { return }
+    $cleaned = [regex]::Replace($existing, "(?s)$([regex]::Escape($markerStart)).*?$([regex]::Escape($markerEnd))\r?\n?", "")
+    Set-Content -Path $ProfilePath -Value $cleaned -Encoding UTF8 -NoNewline
+    Write-Ok "Removed duplicate profile loader from $ProfilePath"
+  } catch {
+    Write-Warn "Could not clean up ${ProfilePath}: $($_.Exception.Message)"
+  }
 }
 
 function Update-ProfileLoader([string]$ProfilePath) {
@@ -482,6 +506,9 @@ function Invoke-Doctor {
   Invoke-Check "uv is available" { Test-Command "uv" } | Out-Null
   Invoke-Check "managed profile exists" { Test-Path $ManagedProfile } | Out-Null
   Invoke-Check "managed profile parses" { $null = [scriptblock]::Create((Get-Content -Raw $ManagedProfile)); $true } | Out-Null
+  Invoke-Check "managed profile is loaded once" {
+    -not ($LegacyProfileTargets | Where-Object { (Test-Path $_) -and (Select-String -Path $_ -SimpleMatch "# >>> artur-powershell-setup >>>" -Quiet) })
+  } | Out-Null
 
   foreach ($module in $PowerShellModules) {
     Invoke-Check "$module module is available" { Get-Module -ListAvailable -Name $module } | Out-Null
@@ -553,8 +580,9 @@ Install-Modules
 
 Write-Step "3" "Writing PowerShell configuration"
 Write-ManagedProfile
-foreach ($target in $ProfileTargets) {
-  Update-ProfileLoader $target
+Update-ProfileLoader $ProfileTarget
+foreach ($target in $LegacyProfileTargets) {
+  Remove-ProfileLoader $target
 }
 Update-WindowsTerminalProfile
 
