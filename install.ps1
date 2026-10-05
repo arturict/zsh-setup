@@ -459,7 +459,9 @@ function Update-WindowsTerminalProfile {
     }
 
     $profileName = "Artur PowerShell"
-    $commandLine = "pwsh.exe -NoExit -ExecutionPolicy Bypass -Command `"& '$ManagedProfile'`""
+    # pwsh already loads the managed profile through the $PROFILE loader. Running
+    # it again with -Command doubled the start-up work of every new tab.
+    $commandLine = "pwsh.exe -NoLogo -ExecutionPolicy Bypass"
     $existing = $json.profiles.list | Where-Object { $_.name -eq $profileName } | Select-Object -First 1
 
     if ($existing) {
