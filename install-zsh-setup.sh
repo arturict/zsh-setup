@@ -226,9 +226,12 @@ TARGET_ZSH_CUSTOM="$TARGET_ZSH/custom"
 TARGET_CONFIG_DIR="$TARGET_HOME/.config/artur-zsh-setup"
 TARGET_CONFIG_FILE="$TARGET_CONFIG_DIR/zshrc.zsh"
 TARGET_PROFILE_FILE="$TARGET_CONFIG_DIR/zprofile.zsh"
+TARGET_ENV_FILE="$TARGET_CONFIG_DIR/env.zsh"
+TARGET_ZSHENV_FILE="$TARGET_CONFIG_DIR/zshenv.zsh"
 TARGET_COMPLETIONS_DIR="$TARGET_CONFIG_DIR/completions"
 TARGET_ZSHRC="$TARGET_HOME/.zshrc"
 TARGET_ZPROFILE="$TARGET_HOME/.zprofile"
+TARGET_ZSHENV="$TARGET_HOME/.zshenv"
 TARGET_BASHRC="$TARGET_HOME/.bashrc"
 TARGET_SHELL="$(getent passwd "$TARGET_USER" | cut -d: -f7)"
 ZSH_BIN="${ZSH_BIN:-/usr/bin/zsh}"
@@ -366,6 +369,10 @@ install_oh_my_zsh() {
     return
   fi
 
+  # Without an existing ~/.zshrc the Oh My Zsh installer writes its template,
+  # which loads Oh My Zsh a second time below the managed block. An empty file
+  # makes KEEP_ZSHRC apply; the managed loader block is added later.
+  run_as_target_user "touch '$TARGET_ZSHRC'"
   run_as_target_user "RUNZSH=no CHSH=no KEEP_ZSHRC=yes sh -c \"\$(curl -fsSL '$OH_MY_ZSH_INSTALL_URL')\" \"\" --unattended"
   print_success "Oh My Zsh installed"
   record_status installed "Oh My Zsh"
@@ -435,14 +442,19 @@ install_or_update_pyenv() {
 refresh_generated_assets() {
   ensure_directory "$TARGET_COMPLETIONS_DIR"
 
+  # The completions directory is on fpath, so _uv and _uvx are autoloaded on the
+  # first <Tab> instead of parsing 7000 lines on every shell start. Older
+  # releases sourced uv.zsh and uvx.zsh directly.
+  run_as_target_user "rm -f '$TARGET_COMPLETIONS_DIR/uv.zsh' '$TARGET_COMPLETIONS_DIR/uvx.zsh'"
+
   if run_as_target_user "[[ -x '$TARGET_HOME/.local/bin/uv' ]]"; then
-    if run_as_target_user "'$TARGET_HOME/.local/bin/uv' generate-shell-completion zsh > '$TARGET_COMPLETIONS_DIR/uv.zsh'"; then
+    if run_as_target_user "'$TARGET_HOME/.local/bin/uv' generate-shell-completion zsh > '$TARGET_COMPLETIONS_DIR/_uv'"; then
       print_success "uv completion refreshed"
     else
       print_warning "Could not generate uv completion"
     fi
 
-    if run_as_target_user "'$TARGET_HOME/.local/bin/uvx' --generate-shell-completion zsh > '$TARGET_COMPLETIONS_DIR/uvx.zsh'"; then
+    if run_as_target_user "'$TARGET_HOME/.local/bin/uvx' --generate-shell-completion zsh > '$TARGET_COMPLETIONS_DIR/_uvx'"; then
       print_success "uvx completion refreshed"
     else
       print_warning "Could not generate uvx completion"
@@ -457,37 +469,28 @@ write_managed_config() {
   cat <<'EOF' >"$tmp_file"
 # Managed by Artur's zsh-setup installer.
 # This file is sourced from ~/.zshrc and can be regenerated safely.
+#
+# Every terminal, tmux pane and `exec zsh` runs this file. Keep it free of
+# subprocesses: tools are put on PATH directly, and slow initialisation (nvm,
+# pyenv, completion scripts) is cached or deferred until first use.
 
 if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
   source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
 fi
 
+[[ -r "$HOME/.config/artur-zsh-setup/env.zsh" ]] && source "$HOME/.config/artur-zsh-setup/env.zsh"
+
 export ZSH="${ZSH:-$HOME/.oh-my-zsh}"
 export ZSH_CUSTOM="${ZSH_CUSTOM:-$ZSH/custom}"
-export PATH="$HOME/.local/bin:$PATH"
 export ZSH_COMPDUMP="${XDG_CACHE_HOME:-$HOME/.cache}/zcompdump-$ZSH_VERSION"
-export PYENV_ROOT="$HOME/.pyenv"
 
-if [[ -d "$PYENV_ROOT/bin" ]]; then
-  export PATH="$PYENV_ROOT/bin:$PATH"
+if [[ ! -d "${XDG_CACHE_HOME:-$HOME/.cache}" || ! -d "${XDG_STATE_HOME:-$HOME/.local/state}/zsh" ]]; then
+  mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}" "${XDG_STATE_HOME:-$HOME/.local/state}/zsh" 2>/dev/null
 fi
 
-export NVM_DIR="$HOME/.nvm"
-if [[ -s "$NVM_DIR/nvm.sh" ]]; then
-  source "$NVM_DIR/nvm.sh"
-fi
-
-# Keep Bun after nvm so the managed Bun OpenCode binary wins over stale npm shims.
-export BUN_INSTALL="$HOME/.bun"
-if [[ -d "$BUN_INSTALL/bin" ]]; then
-  export PATH="$BUN_INSTALL/bin:$PATH"
-fi
-
-if command -v pyenv >/dev/null 2>&1; then
-  eval "$(pyenv init --path)"
-fi
-
-mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}" "${XDG_STATE_HOME:-$HOME/.local/state}/zsh" 2>/dev/null || true
+# Generated completions such as _uv and _uvx are autoloaded on first use.
+typeset -gU fpath
+fpath=("$HOME/.config/artur-zsh-setup/completions" $fpath)
 
 HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/history"
 HISTSIZE=50000
@@ -514,7 +517,11 @@ add_plugin_if_command() {
 }
 
 add_plugin_if_present "fzf-tab"
-add_plugin_if_present "zsh-completions"
+# zsh-completions only ships completion functions. They must be on fpath before
+# Oh My Zsh runs compinit; loading it as a plugin adds them too late.
+if [[ -d "$ZSH_CUSTOM/plugins/zsh-completions/src" ]]; then
+  fpath+=("$ZSH_CUSTOM/plugins/zsh-completions/src")
+fi
 add_plugin_if_present "zsh-autosuggestions"
 add_plugin_if_present "history-substring-search"
 add_plugin_if_present "alias-finder"
@@ -541,18 +548,11 @@ if [[ -r "$HOME/.p10k.zsh" ]]; then
   source "$HOME/.p10k.zsh"
 fi
 
-if [[ -r "$HOME/.config/artur-zsh-setup/completions/uv.zsh" ]]; then
-  source "$HOME/.config/artur-zsh-setup/completions/uv.zsh"
-fi
-
-if [[ -r "$HOME/.config/artur-zsh-setup/completions/uvx.zsh" ]]; then
-  source "$HOME/.config/artur-zsh-setup/completions/uvx.zsh"
-fi
-
 bindkey '^[[A' history-substring-search-up 2>/dev/null || true
 bindkey '^[[B' history-substring-search-down 2>/dev/null || true
 
-if [[ -r /usr/share/autojump/autojump.zsh ]]; then
+# The autojump plugin already sources this file; only load it when the plugin is absent.
+if (( ! ${plugins[(Ie)autojump]} )) && [[ -r /usr/share/autojump/autojump.zsh ]]; then
   source /usr/share/autojump/autojump.zsh
 fi
 
@@ -627,24 +627,112 @@ if command -v batcat >/dev/null 2>&1; then
   alias bat='batcat'
 fi
 
-if command -v pyenv >/dev/null 2>&1; then
-  add_plugin_if_present "pyenv"
-  eval "$(pyenv init - zsh)"
+if (( $+commands[pyenv] )); then
+  # `pyenv init -` forks bash and rehashes on every start. Its output only
+  # changes with pyenv itself, so cache it and rehash when an installed Python
+  # gained or lost executables since the shims were last written.
+  () {
+    local init_cache="${XDG_CACHE_HOME:-$HOME/.cache}/artur-zsh-setup/pyenv-init.zsh"
+    if [[ ! -s $init_cache || $PYENV_ROOT/libexec/pyenv-init -nt $init_cache ]]; then
+      mkdir -p "${init_cache:h}"
+      command pyenv init - --no-push-path --no-rehash zsh >|"$init_cache.$$" &&
+        mv -f "$init_cache.$$" "$init_cache"
+    fi
+    [[ -s $init_cache ]] && source "$init_cache"
+
+    local -a newest_bin=("$PYENV_ROOT"/versions/*/bin(N/om[1]))
+    if (( $#newest_bin )) && [[ $newest_bin[1] -nt $PYENV_ROOT/shims ]]; then
+      command pyenv rehash &>/dev/null &!
+    fi
+  }
 fi
 
 export EDITOR="${EDITOR:-vim}"
 EOF
 
+  install_managed_file "$tmp_file" "$TARGET_CONFIG_FILE"
+  print_success "Managed zsh config written to $TARGET_CONFIG_FILE"
+}
+
+install_managed_file() {
+  local tmp_file="$1"
+  local destination="$2"
+
   ensure_directory "$TARGET_CONFIG_DIR"
 
   if is_root; then
-    install -o "$TARGET_USER" -g "$TARGET_USER" -m 0644 "$tmp_file" "$TARGET_CONFIG_FILE"
+    install -o "$TARGET_USER" -g "$TARGET_USER" -m 0644 "$tmp_file" "$destination"
   else
-    install -m 0644 "$tmp_file" "$TARGET_CONFIG_FILE"
+    install -m 0644 "$tmp_file" "$destination"
   fi
 
   rm -f "$tmp_file"
-  print_success "Managed zsh config written to $TARGET_CONFIG_FILE"
+}
+
+write_managed_env() {
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  cat <<'EOF' >"$tmp_file"
+# Managed by Artur's zsh-setup installer.
+# PATH setup shared by zprofile.zsh and zshrc.zsh; can be regenerated safely.
+#
+# This runs for every login and interactive shell, so it must not fork.
+# Sourcing nvm.sh used to cost more than the rest of the startup together:
+# the default Node.js is now resolved from nvm's alias files, and nvm.sh is
+# loaded the first time `nvm` itself is called.
+
+typeset -gU path
+
+export PYENV_ROOT="$HOME/.pyenv"
+export NVM_DIR="$HOME/.nvm"
+export BUN_INSTALL="$HOME/.bun"
+
+path=("$HOME/.local/bin" $path)
+[[ -d "$PYENV_ROOT/bin" ]] && path=("$PYENV_ROOT/bin" $path)
+
+if [[ -s "$NVM_DIR/nvm.sh" ]] && [[ ${functions[nvm]-} != *nvm_* ]]; then
+  # Follow default -> lts/* -> lts/<codename> -> vX.Y.Z like `nvm use default`.
+  () {
+    setopt local_options extended_glob
+    local target=default
+    local -i hops
+    for (( hops = 0; hops < 8; hops++ )); do
+      [[ -r "$NVM_DIR/alias/$target" ]] || break
+      target="$(<"$NVM_DIR/alias/$target")"
+      target="${target//[[:space:]]/}"
+    done
+
+    local -a candidates
+    case $target in
+      (node|stable)
+        candidates=("$NVM_DIR"/versions/node/v*(N/nOn)) ;;
+      (v#<->(.<->)#)
+        candidates=("$NVM_DIR/versions/node/v${target#v}"(N/) "$NVM_DIR/versions/node/v${target#v}".*(N/nOn)) ;;
+    esac
+
+    if (( $#candidates )); then
+      export NVM_BIN="$candidates[1]/bin" NVM_INC="$candidates[1]/include/node"
+      path=("$NVM_BIN" $path)
+      nvm() {
+        unfunction nvm
+        source "$NVM_DIR/nvm.sh" --no-use
+        nvm "$@"
+      }
+    else
+      # Aliases such as "system" or an uninstalled version: let nvm decide.
+      source "$NVM_DIR/nvm.sh"
+    fi
+  }
+fi
+
+# Keep Bun after nvm so the managed Bun OpenCode binary wins over stale npm shims.
+[[ -d "$BUN_INSTALL/bin" ]] && path=("$BUN_INSTALL/bin" $path)
+[[ -d "$PYENV_ROOT/shims" ]] && path=("$PYENV_ROOT/shims" $path)
+EOF
+
+  install_managed_file "$tmp_file" "$TARGET_ENV_FILE"
+  print_success "Managed PATH setup written to $TARGET_ENV_FILE"
 }
 
 write_managed_profile() {
@@ -655,38 +743,28 @@ write_managed_profile() {
 # Managed by Artur's zsh-setup installer.
 # This file is sourced from ~/.zprofile and can be regenerated safely.
 
-export PATH="$HOME/.local/bin:$PATH"
-export PYENV_ROOT="$HOME/.pyenv"
-
-if [[ -d "$PYENV_ROOT/bin" ]]; then
-  export PATH="$PYENV_ROOT/bin:$PATH"
-fi
-
-export NVM_DIR="$HOME/.nvm"
-if [[ -s "$NVM_DIR/nvm.sh" ]]; then
-  source "$NVM_DIR/nvm.sh"
-fi
-
-export BUN_INSTALL="$HOME/.bun"
-if [[ -d "$BUN_INSTALL/bin" ]]; then
-  export PATH="$BUN_INSTALL/bin:$PATH"
-fi
-
-if command -v pyenv >/dev/null 2>&1; then
-  eval "$(pyenv init --path)"
-fi
+[[ -r "$HOME/.config/artur-zsh-setup/env.zsh" ]] && source "$HOME/.config/artur-zsh-setup/env.zsh"
 EOF
 
-  ensure_directory "$TARGET_CONFIG_DIR"
-
-  if is_root; then
-    install -o "$TARGET_USER" -g "$TARGET_USER" -m 0644 "$tmp_file" "$TARGET_PROFILE_FILE"
-  else
-    install -m 0644 "$tmp_file" "$TARGET_PROFILE_FILE"
-  fi
-
-  rm -f "$tmp_file"
+  install_managed_file "$tmp_file" "$TARGET_PROFILE_FILE"
   print_success "Managed login profile written to $TARGET_PROFILE_FILE"
+}
+
+write_managed_zshenv() {
+  local tmp_file
+  tmp_file="$(mktemp)"
+
+  cat <<'EOF' >"$tmp_file"
+# Managed by Artur's zsh-setup installer.
+# This file is sourced from ~/.zshenv and can be regenerated safely.
+
+# Ubuntu's /etc/zsh/zshrc runs compinit before ~/.zshrc, and Oh My Zsh runs it
+# again with the full plugin fpath. Skip the first, redundant pass.
+skip_global_compinit=1
+EOF
+
+  install_managed_file "$tmp_file" "$TARGET_ZSHENV_FILE"
+  print_success "Managed zshenv written to $TARGET_ZSHENV_FILE"
 }
 
 update_loader_file() {
@@ -731,6 +809,54 @@ EOF
 
   rm -f "$tmp_file"
   print_success "$display_name updated with managed loader block"
+}
+
+disable_duplicate_oh_my_zsh() {
+  # Earlier releases let the Oh My Zsh installer write its template ~/.zshrc on
+  # fresh machines. Below the managed block it loaded Oh My Zsh a second time
+  # with a different plugin list, which also rebuilt the completion dump on
+  # every start. Only the untouched template is disabled; edited files get a
+  # warning so user customisations are never dropped silently.
+  local backup_suffix
+  local tmp_file
+  local result
+
+  run_as_target_user "[[ -f '$TARGET_ZSHRC' ]]" || return 0
+  tmp_file="$(mktemp)"
+  run_as_target_user "cat '$TARGET_ZSHRC'" >"$tmp_file"
+
+  result="$(perl -0 -e '
+    local $/; my $text = <STDIN>;
+    $text =~ s/^# >>> artur-zsh-setup >>>.*?^# <<< artur-zsh-setup <<<\n?//msg;
+    my @loads = $text =~ /^[ \t]*(?:source|\.)[ \t]+["\x27]?\$\{?ZSH\}?\/oh-my-zsh\.sh/mg;
+    exit 0 unless @loads;
+    my @themes = $text =~ /^[ \t]*ZSH_THEME=/mg;
+    my @plugins = $text =~ /^[ \t]*plugins=/mg;
+    my $stock = @loads == 1 && @themes == 1 && @plugins == 1
+      && $text =~ /^ZSH_THEME="robbyrussell"$/m
+      && $text =~ /^plugins=\(git\)$/m
+      && $text =~ /^source \$ZSH\/oh-my-zsh\.sh$/m;
+    print $stock ? "stock" : "custom";
+  ' <"$tmp_file")"
+
+  case "$result" in
+    stock)
+      backup_suffix="$(date +%Y%m%d_%H%M%S)"
+      run_as_target_user "cp '$TARGET_ZSHRC' '$TARGET_ZSHRC.backup.$backup_suffix'"
+      perl -0pi -e 's/^(ZSH_THEME="robbyrussell"|plugins=\(git\)|source \$ZSH\/oh-my-zsh\.sh)$/# Disabled by artur-zsh-setup: the managed block already loads Oh My Zsh.\n# $1/mg' "$tmp_file"
+      if is_root; then
+        install -o "$TARGET_USER" -g "$TARGET_USER" -m 0644 "$tmp_file" "$TARGET_ZSHRC"
+      else
+        install -m 0644 "$tmp_file" "$TARGET_ZSHRC"
+      fi
+      print_success "Disabled the duplicate Oh My Zsh template in ~/.zshrc (backup: ~/.zshrc.backup.$backup_suffix)"
+      ;;
+    custom)
+      print_warning "~/.zshrc loads Oh My Zsh a second time outside the managed block. Move its customisations into the managed setup and remove that 'source \$ZSH/oh-my-zsh.sh' line for a faster shell."
+      ;;
+  esac
+
+  rm -f "$tmp_file"
 }
 
 install_apt_packages() {
@@ -904,11 +1030,19 @@ install_devhub_assets() {
 
 apply_shell_config() {
   print_step "6" "Writing shell configuration"
+  write_managed_env
   write_managed_config
   write_managed_profile
+  write_managed_zshenv
   update_loader_file "$TARGET_ZSHRC" '$HOME/.config/artur-zsh-setup/zshrc.zsh' '~/.zshrc'
   update_loader_file "$TARGET_ZPROFILE" '$HOME/.config/artur-zsh-setup/zprofile.zsh' '~/.zprofile'
+  update_loader_file "$TARGET_ZSHENV" '$HOME/.config/artur-zsh-setup/zshenv.zsh' '~/.zshenv'
+  disable_duplicate_oh_my_zsh
   refresh_generated_assets
+}
+
+zshrc_loads_oh_my_zsh_directly() {
+  run_as_target_user "cat '$TARGET_ZSHRC' 2>/dev/null" | grep -Eq '^[[:space:]]*(source|\.)[[:space:]]+.?\$\{?ZSH\}?/oh-my-zsh\.sh'
 }
 
 verify_installation() {
@@ -929,6 +1063,8 @@ verify_installation() {
     verify_check "Codex is available" "run_as_target_user \"zsh -l -c 'command -v codex >/dev/null'\"" || true
     verify_check "Claude Code is available" "run_as_target_user \"zsh -l -c 'command -v claude >/dev/null'\"" || true
     verify_check "OpenCode is available" "run_as_target_user \"zsh -l -c 'command -v opencode >/dev/null'\"" || true
+    verify_check "Node.js is on PATH without loading nvm" "run_as_target_user \"zsh -i -c 'command -v node >/dev/null && [[ \\\${functions[nvm]} != *nvm_* ]]'\"" || true
+    verify_check "nvm loads on first use" "run_as_target_user \"zsh -i -c 'nvm --version >/dev/null'\"" || true
   fi
   verify_check "bat or batcat is installed" "command -v bat >/dev/null 2>&1 || command -v batcat >/dev/null 2>&1" || true
   verify_check "Oh My Zsh exists" "run_as_target_user \"[[ -d '$TARGET_ZSH' ]]\"" || true
@@ -939,7 +1075,9 @@ verify_installation() {
   verify_check "zsh-completions exists" "run_as_target_user \"[[ -d '$TARGET_ZSH_CUSTOM/plugins/zsh-completions' ]]\"" || true
   verify_check "Managed config exists" "run_as_target_user \"[[ -f '$TARGET_CONFIG_FILE' ]]\"" || true
   verify_check "Managed login profile exists" "run_as_target_user \"[[ -f '$TARGET_PROFILE_FILE' ]]\"" || true
-  verify_check "Managed config syntax is valid" "run_as_target_user \"zsh -n '$TARGET_CONFIG_FILE'\"" || true
+  verify_check "Managed PATH setup exists" "run_as_target_user \"[[ -f '$TARGET_ENV_FILE' ]]\"" || true
+  verify_check "Managed config syntax is valid" "run_as_target_user \"zsh -n '$TARGET_CONFIG_FILE' && zsh -n '$TARGET_ENV_FILE'\"" || true
+  verify_check "~/.zshrc loads Oh My Zsh only through the managed block" "! zshrc_loads_oh_my_zsh_directly" || true
   verify_check "Login zsh startup succeeds" "run_as_target_user \"zsh -l -c 'exit 0'\"" || true
   verify_check "Interactive zsh startup succeeds" "run_as_target_user \"zsh -i -c 'exit 0'\"" || true
   verify_check "git is available inside zsh" "run_as_target_user \"zsh -i -c 'command -v git >/dev/null 2>&1'\"" || true
@@ -961,7 +1099,7 @@ verify_installation() {
   if [[ "$EXPECT_UV" -eq 1 ]]; then
     verify_check "uv exists" "run_as_target_user \"[[ -x '$TARGET_HOME/.local/bin/uv' ]]\"" || true
     verify_check "uvx exists" "run_as_target_user \"[[ -x '$TARGET_HOME/.local/bin/uvx' ]]\"" || true
-    verify_check "uv completion exists" "run_as_target_user \"[[ -f '$TARGET_COMPLETIONS_DIR/uv.zsh' ]]\"" || true
+    verify_check "uv completion exists" "run_as_target_user \"[[ -f '$TARGET_COMPLETIONS_DIR/_uv' ]]\"" || true
     verify_check "uv is available in login zsh" "run_as_target_user \"zsh -l -c 'command -v uv >/dev/null 2>&1 && uv --version >/dev/null 2>&1'\"" || true
     verify_check "uv is available inside zsh" "run_as_target_user \"zsh -i -c 'command -v uv >/dev/null 2>&1 && uv --version >/dev/null 2>&1'\"" || true
   fi

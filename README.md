@@ -120,8 +120,11 @@ bash setup.sh --skip-optional-tools
 
 ```text
 ~/.config/artur-zsh-setup/
+├── env.zsh             PATH for login and interactive shells
 ├── zshrc.zsh
 ├── zprofile.zsh
+├── zshenv.zsh
+├── completions/        generated completions such as _uv
 ├── tmux-auto.zsh
 ├── tmux-auto.bash
 └── content/
@@ -130,7 +133,21 @@ bash setup.sh --skip-optional-tools
 ~/.tmux.conf
 ```
 
-The installer only adds marked loader blocks to `.zshrc`/`.zprofile` and one guarded tmux loader to `.bashrc` where applicable.
+The installer only adds marked loader blocks to `.zshrc`/`.zprofile`/`.zshenv` and one guarded tmux loader to `.bashrc` where applicable.
+
+## Shell startup
+
+Every terminal, tmux pane and `exec zsh` runs the managed config, so it avoids starting processes:
+
+- Node.js from nvm's default alias is put on `PATH` directly; `nvm.sh` loads the first time you run `nvm`.
+- The `pyenv init` output is cached, and shims are rehashed in the background only after a Python version gained or lost executables.
+- Oh My Zsh runs `compinit` once; Ubuntu's global `compinit` is skipped, and generated completions are autoloaded on first use.
+
+Releases before October 2026 let the Oh My Zsh installer write its template `~/.zshrc` on new machines, which loaded Oh My Zsh a second time. Re-running the setup disables an untouched template (with a backup) and warns when the file was customised. Measure the startup time with:
+
+```bash
+for i in {1..10}; do /usr/bin/time -f %e zsh -i -c exit; done
+```
 
 ## Repository layout
 
