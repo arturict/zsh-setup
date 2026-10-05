@@ -541,6 +541,11 @@ fi
 # Keep syntax highlighting at the end so it can wrap prior completions cleanly.
 add_plugin_if_present "zsh-syntax-highlighting"
 
+# zsh-autosuggestions re-wraps every widget before each prompt by default,
+# which cost about 60 ms per prompt. Bind once at the first prompt instead,
+# after all plugins and the theme have defined their widgets.
+ZSH_AUTOSUGGEST_MANUAL_REBIND=1
+
 ZSH_THEME="powerlevel10k/powerlevel10k"
 source "$ZSH/oh-my-zsh.sh"
 
