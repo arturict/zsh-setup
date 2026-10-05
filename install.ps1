@@ -40,10 +40,13 @@ $WindowsTerminalSettings = @(
   (Join-Path $env:LOCALAPPDATA "Microsoft\Windows Terminal\settings.json")
 )
 # PowerShell runs both the all-hosts and the current-host profile on every
-# start. The loader lives only in the all-hosts profile so the managed profile
-# runs once; older releases also put it into the current-host profile.
-$ProfileTarget = $PROFILE.CurrentUserAllHosts
-$LegacyProfileTargets = @($PROFILE.CurrentUserCurrentHost) | Where-Object { $_ -ne $ProfileTarget }
+# start. The loader lives only in the all-hosts profiles so the managed profile
+# runs once; older releases also put it into the current-host profile. Both
+# editions get it: setup.ps1 usually runs in Windows PowerShell 5.1, while the
+# Windows Terminal profile starts pwsh.
+$ProfileDocuments = Split-Path -Parent (Split-Path -Parent $PROFILE.CurrentUserAllHosts)
+$ProfileTargets = @("PowerShell", "WindowsPowerShell") | ForEach-Object { Join-Path $ProfileDocuments "$_\profile.ps1" }
+$LegacyProfileTargets = @("PowerShell", "WindowsPowerShell") | ForEach-Object { Join-Path $ProfileDocuments "$_\Microsoft.PowerShell_profile.ps1" }
 
 $WingetPackages = @(
   @{ Id = "Microsoft.PowerShell"; Name = "PowerShell 7" },
@@ -307,13 +310,17 @@ function Get-ArturShellScript {
   $command = Get-Command $Name -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1
   if (-not $command) { return }
 
+  # Key the cache on the binary's timestamp and size: installers often keep the
+  # build time as mtime, so an update can look older than the cached script.
+  $binary = Get-Item -LiteralPath $command.Source
   $cacheDir = Join-Path $global:ArturPowerShellSetup.StateDir "shell-scripts"
-  $cache = Join-Path $cacheDir "$Name-$($Arguments -join '-').ps1"
-  $cacheItem = Get-Item -LiteralPath $cache -ErrorAction SilentlyContinue
-  if (-not $cacheItem -or $cacheItem.LastWriteTimeUtc -lt (Get-Item -LiteralPath $command.Source).LastWriteTimeUtc) {
+  $prefix = "$Name-$($Arguments -join '-')"
+  $cache = Join-Path $cacheDir "$prefix-$($binary.LastWriteTimeUtc.Ticks)-$($binary.Length).ps1"
+  if (-not (Test-Path -LiteralPath $cache)) {
     $script = & $command.Source @Arguments | Out-String
     if ($LASTEXITCODE -ne 0 -or -not $script.Trim()) { return }
     New-Item -ItemType Directory -Force -Path $cacheDir | Out-Null
+    Get-ChildItem -LiteralPath $cacheDir -Filter "$prefix-*.ps1" | Remove-Item -Force -ErrorAction SilentlyContinue
     Set-Content -LiteralPath $cache -Value $script -Encoding UTF8
   }
   $cache
@@ -352,7 +359,7 @@ function take {
 }
 
 function mkcd { take @args }
-function reload { . $PROFILE }
+function reload { . $PROFILE.CurrentUserAllHosts }
 
 Set-Alias d docker
 Set-Alias g git
@@ -459,8 +466,8 @@ function Update-WindowsTerminalProfile {
     }
 
     $profileName = "Artur PowerShell"
-    # pwsh already loads the managed profile through the $PROFILE loader. Running
-    # it again with -Command doubled the start-up work of every new tab.
+    # pwsh already loads the managed profile through its all-hosts profile.
+    # Running it again with -Command doubled the start-up work of every new tab.
     $commandLine = "pwsh.exe -NoLogo -ExecutionPolicy Bypass"
     $existing = $json.profiles.list | Where-Object { $_.name -eq $profileName } | Select-Object -First 1
 
@@ -508,6 +515,9 @@ function Invoke-Doctor {
   Invoke-Check "uv is available" { Test-Command "uv" } | Out-Null
   Invoke-Check "managed profile exists" { Test-Path $ManagedProfile } | Out-Null
   Invoke-Check "managed profile parses" { $null = [scriptblock]::Create((Get-Content -Raw $ManagedProfile)); $true } | Out-Null
+  Invoke-Check "managed profile loader is installed" {
+    -not ($ProfileTargets | Where-Object { -not ((Test-Path $_) -and (Select-String -Path $_ -SimpleMatch "# >>> artur-powershell-setup >>>" -Quiet)) })
+  } | Out-Null
   Invoke-Check "managed profile is loaded once" {
     -not ($LegacyProfileTargets | Where-Object { (Test-Path $_) -and (Select-String -Path $_ -SimpleMatch "# >>> artur-powershell-setup >>>" -Quiet) })
   } | Out-Null
@@ -582,7 +592,9 @@ Install-Modules
 
 Write-Step "3" "Writing PowerShell configuration"
 Write-ManagedProfile
-Update-ProfileLoader $ProfileTarget
+foreach ($target in $ProfileTargets) {
+  Update-ProfileLoader $target
+}
 foreach ($target in $LegacyProfileTargets) {
   Remove-ProfileLoader $target
 }
